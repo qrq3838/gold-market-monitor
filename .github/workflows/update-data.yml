@@ -1,0 +1,41 @@
+name: Update gold ETF flow data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 7 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-gold-etf-flow-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Refresh World Gold Council data
+        run: python scripts/update_data.py
+
+      - name: Commit updated data
+        shell: bash
+        run: |
+          if git diff --quiet -- data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv; then
+            echo "No source data change."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv
+          git commit -m "Update gold ETF flow data"
+          git push
