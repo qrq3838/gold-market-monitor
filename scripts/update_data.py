@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Download and normalize World Gold Council regional gold ETF flow data and gold prices."""
+"""Download and normalize World Gold Council regional gold ETF flow and holdings data."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from typing import Any
 
 
 API_URL = "https://fsapi.gold.org/api/v11/charts/etfv2/revised/flows-chart2"
+HOLDINGS_API_URL = "https://fsapi.gold.org/api/v11/charts/etfv2/revised/holdings-chart2"
 SOURCE_PAGE = "https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows"
 FREQUENCIES = ("Yearly", "Quarterly", "Monthly", "Weekly")
 UNITS = ("usd", "tonnes")
@@ -26,6 +27,12 @@ REGIONS = (
 )
 GOLD_PRICE_SERIES = "Gold Price (rhs)"
 GOLD_PRICE_COLOR = "#d8ab4c"
+HOLDINGS_REGION_COLORS = {
+    "North America": "#215785",
+    "Europe": "#00d296",
+    "Asia": "#df8cff",
+    "Other": "#64c8ff",
+}
 
 
 def fetch_json(url: str) -> dict[str, Any]:
@@ -164,6 +171,109 @@ def normalize(source: dict[str, Any], previous: dict[str, Any] | None = None) ->
     }
 
 
+def normalize_holdings(
+    source: dict[str, Any], previous: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    chart_data = source.get("chartData")
+    if not isinstance(chart_data, dict):
+        raise ValueError("Missing holdings chartData object")
+    source_data = chart_data.get("data")
+    if not isinstance(source_data, dict):
+        raise ValueError("Missing holdings chartData.data object")
+
+    region_names = [name for name, _ in REGIONS]
+    expected_columns = ["Date", *region_names, "Gold, US$/oz"]
+    normalized_frequencies: dict[str, Any] = {}
+    observation_counts: dict[str, int] = {}
+
+    for frequency in FREQUENCIES:
+        frequency_data = source_data.get(frequency)
+        if not isinstance(frequency_data, dict):
+            raise ValueError(f"Missing holdings {frequency} data")
+
+        normalized_units: dict[str, dict[str, list[float | None]]] = {}
+        reference_dates: list[str] | None = None
+        gold_price_values: list[float] | None = None
+
+        for unit in UNITS:
+            unit_data = frequency_data.get(unit)
+            if not isinstance(unit_data, dict):
+                raise ValueError(f"Missing holdings {frequency}.{unit} data")
+            columns = unit_data.get("columns")
+            rows = unit_data.get("set")
+            if columns != expected_columns:
+                raise ValueError(f"Unexpected holdings columns in {frequency}.{unit}: {columns}")
+            if not isinstance(rows, list) or not rows:
+                raise ValueError(f"Empty holdings {frequency}.{unit} data")
+            if any(not isinstance(row, list) or len(row) != len(expected_columns) for row in rows):
+                raise ValueError(f"Malformed holdings row in {frequency}.{unit}")
+
+            dates = [timestamp_to_date(row[0]) for row in rows]
+            if reference_dates is None:
+                reference_dates = dates
+            elif dates != reference_dates:
+                raise ValueError(f"Holdings date mismatch in {frequency}.{unit}")
+
+            unit_values: dict[str, list[float | None]] = {}
+            for column_index, region_name in enumerate(region_names, start=1):
+                unit_values[region_name] = [
+                    None if row[column_index] is None else float(row[column_index]) for row in rows
+                ]
+            normalized_units[unit] = unit_values
+
+            unit_gold_prices = [float(row[-1]) for row in rows]
+            if gold_price_values is None:
+                gold_price_values = unit_gold_prices
+            elif unit_gold_prices != gold_price_values:
+                raise ValueError(f"Holdings gold price mismatch between units in {frequency}")
+
+        assert reference_dates is not None
+        assert gold_price_values is not None
+        normalized_frequencies[frequency] = {
+            "dates": reference_dates,
+            "usd": normalized_units["usd"],
+            "tonnes": normalized_units["tonnes"],
+            "gold_price_usd_per_oz": gold_price_values,
+        }
+        observation_counts[frequency] = len(reference_dates)
+
+    as_of_date = str(chart_data.get("asOfDate") or normalized_frequencies["Weekly"]["dates"][-1])
+    data_identity = {
+        "as_of_date": as_of_date,
+        "frequencies": normalized_frequencies,
+    }
+    if previous and {
+        "as_of_date": previous.get("as_of_date"),
+        "frequencies": previous.get("frequencies"),
+    } == data_identity:
+        downloaded_at = previous.get("downloaded_at_utc")
+    else:
+        downloaded_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    return {
+        "schema_version": 1,
+        "title": "Gold ETFs holdings by region",
+        "source_page": SOURCE_PAGE,
+        "api_url": HOLDINGS_API_URL,
+        "as_of_date": as_of_date,
+        "downloaded_at_utc": downloaded_at,
+        "gold_price": {
+            "source_series": "Gold, US$/oz",
+            "unit": "US dollars per troy ounce",
+            "color": GOLD_PRICE_COLOR,
+        },
+        "units": {
+            "usd": "US dollars under management",
+            "tonnes": "tonnes held",
+        },
+        "regions": [
+            {"name": name, "color": HOLDINGS_REGION_COLORS[name]} for name in region_names
+        ],
+        "observation_counts": observation_counts,
+        "frequencies": normalized_frequencies,
+    }
+
+
 def render_csv(payload: dict[str, Any]) -> str:
     import io
 
@@ -200,6 +310,45 @@ def render_gold_price_csv(payload: dict[str, Any]) -> str:
     return output.getvalue()
 
 
+def render_holdings_csv(payload: dict[str, Any]) -> str:
+    import io
+
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(
+        (
+            "frequency",
+            "date",
+            "region",
+            "usd_aum",
+            "tonnes_holdings",
+            "gold_price_usd_per_oz",
+        )
+    )
+    region_names = [region["name"] for region in payload["regions"]]
+    for frequency in FREQUENCIES:
+        block = payload["frequencies"][frequency]
+        for index, date in enumerate(block["dates"]):
+            for region in region_names:
+                usd_value = block["usd"][region][index]
+                tonnes_value = block["tonnes"][region][index]
+                writer.writerow(
+                    (
+                        frequency,
+                        date,
+                        region,
+                        "" if usd_value is None else format(usd_value, ".10f").rstrip("0").rstrip("."),
+                        ""
+                        if tonnes_value is None
+                        else format(tonnes_value, ".10f").rstrip("0").rstrip("."),
+                        format(block["gold_price_usd_per_oz"][index], ".10f")
+                        .rstrip("0")
+                        .rstrip("."),
+                    )
+                )
+    return output.getvalue()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -213,6 +362,8 @@ def main() -> int:
     json_path = args.output_dir / "gold_etf_flows_by_region.json"
     csv_path = args.output_dir / "gold_etf_flows_by_region.csv"
     gold_price_csv_path = args.output_dir / "gold_price_by_frequency.csv"
+    holdings_json_path = args.output_dir / "gold_etf_holdings_by_region.json"
+    holdings_csv_path = args.output_dir / "gold_etf_holdings_by_region.csv"
     previous = None
     if json_path.exists():
         try:
@@ -221,11 +372,36 @@ def main() -> int:
             previous = None
 
     payload = normalize(fetch_json(API_URL), previous)
+    holdings_previous = None
+    if holdings_json_path.exists():
+        try:
+            holdings_previous = json.loads(holdings_json_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            holdings_previous = None
+    holdings_payload = normalize_holdings(fetch_json(HOLDINGS_API_URL), holdings_previous)
     atomic_write_text(json_path, json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
     atomic_write_text(csv_path, render_csv(payload))
     atomic_write_text(gold_price_csv_path, render_gold_price_csv(payload))
-    counts = ", ".join(f"{key}={value}" for key, value in payload["observation_counts"].items())
-    print(f"Updated through {payload['as_of_date']} ({counts}); included {GOLD_PRICE_SERIES}")
+    atomic_write_text(
+        holdings_json_path,
+        json.dumps(holdings_payload, ensure_ascii=False, separators=(",", ":")) + "\n",
+    )
+    atomic_write_text(holdings_csv_path, render_holdings_csv(holdings_payload))
+    flow_counts = ", ".join(
+        f"{key}={value}" for key, value in payload["observation_counts"].items()
+    )
+    holdings_counts = ", ".join(
+        f"{key}={value}" for key, value in holdings_payload["observation_counts"].items()
+    )
+    if payload["as_of_date"] != holdings_payload["as_of_date"]:
+        raise ValueError(
+            f"Source as-of mismatch: flows={payload['as_of_date']}, "
+            f"holdings={holdings_payload['as_of_date']}"
+        )
+    print(
+        f"Updated through {payload['as_of_date']}; flows ({flow_counts}); "
+        f"holdings ({holdings_counts}); included gold prices"
+    )
     return 0
 
 
