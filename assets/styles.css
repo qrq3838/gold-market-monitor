@@ -276,7 +276,9 @@ h2 {
   min-height: 48px;
 }
 
-#chart-status { margin: 0; color: var(--muted); font-size: 0.82rem; }
+#chart-status,
+#holdings-chart-status,
+#real-yield-chart-status { margin: 0; color: var(--muted); font-size: 0.82rem; }
 
 .region-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .region-legend button {
@@ -308,6 +310,7 @@ h2 {
 .methodology-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px 24px; }
 .methodology-grid p { margin: 0; color: #45575f; line-height: 1.7; }
 .source-line { margin: 20px 0 0; padding-top: 18px; border-top: 1px solid #d5dee1; color: var(--muted); font-size: 0.84rem; }
+.source-line-secondary { margin-top: 8px; padding-top: 0; border-top: 0; }
 .source-line a { color: #1f5f7a; }
 
 footer {

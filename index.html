@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="全球黄金 ETF 监测，按地区展示年、季、月、周资金流、持仓规模和金价。">
-  <title>黄金市场监测｜全球黄金 ETF 资金流与持仓</title>
+  <meta name="description" content="黄金市场监测：全球黄金 ETF 资金流、持仓规模、金价与美国 10 年期实际利率。">
+  <title>黄金市场监测｜ETF 资金流、持仓与实际利率</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="assets/styles.css">
   <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
   <script defer src="assets/app.js"></script>
   <script defer src="assets/holdings.js"></script>
+  <script defer src="assets/real-yield.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -18,10 +19,10 @@
       <div>
         <p class="eyebrow">GOLD MARKET MONITOR</p>
         <h1>黄金市场监测</h1>
-        <p class="header-subtitle">全球实物黄金 ETF 资金流结构与趋势</p>
+        <p class="header-subtitle">全球黄金 ETF、金价与宏观定价因子</p>
       </div>
       <div class="header-meta">
-        <p>数据来源：World Gold Council</p>
+        <p>数据来源：World Gold Council、FRED</p>
         <p>更新至 <strong id="header-date">载入中</strong></p>
         <p class="disclaimer">仅供研究交流，不构成任何投资建议。</p>
       </div>
@@ -34,6 +35,7 @@
       <a href="#overview">最新概览</a>
       <a href="#etf-flows">ETF 资金流</a>
       <a href="#etf-holdings">ETF 持仓</a>
+      <a href="#real-yield">美国实际利率</a>
       <a href="#methodology">口径与声明</a>
     </div>
   </nav>
@@ -186,6 +188,44 @@
       </article>
     </section>
 
+    <section id="real-yield" class="page-section" aria-labelledby="real-yield-title">
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <p class="section-kicker">REAL RATES</p>
+            <h2 id="real-yield-title">美国 10 年期国债实际收益率</h2>
+            <p>追踪 10 年期通胀保值国债（TIPS）恒定期限收益率；实际利率是黄金定价的重要宏观变量。</p>
+          </div>
+          <div class="download-links" aria-label="美国实际利率数据下载">
+            <a href="data/us_10y_real_yield.csv" download>下载 CSV</a>
+            <a href="data/us_10y_real_yield.json" download>下载 JSON</a>
+          </div>
+        </div>
+
+        <div class="control-row range-controls">
+          <div class="date-range">
+            <label>开始日期 <input id="real-yield-start-date" type="date"></label>
+            <span>至</span>
+            <label>结束日期 <input id="real-yield-end-date" type="date"></label>
+          </div>
+          <div id="real-yield-range-buttons" class="quick-ranges" role="group" aria-label="美国实际利率快速选择时间范围">
+            <button type="button" data-years="1">近 1 年</button>
+            <button type="button" data-years="3">近 3 年</button>
+            <button type="button" data-years="5" class="active">近 5 年</button>
+            <button type="button" data-years="all">全部历史</button>
+          </div>
+        </div>
+
+        <div class="chart-status-row">
+          <p id="real-yield-chart-status" role="status">正在载入实际利率数据…</p>
+          <span id="real-yield-latest" class="date-badge">—</span>
+        </div>
+
+        <div id="real-yield-chart" class="flow-chart" role="img" aria-label="美国 10 年期通胀保值国债实际收益率日度曲线图"></div>
+        <p class="chart-note">单位为百分比（%），日频、非季调；非交易日和缺失值不做插值。历史基线来自用户提供的 Excel，2026-08-07 之后由 FRED DFII10 自动增量更新。</p>
+      </article>
+    </section>
+
     <section id="methodology" class="page-section methodology" aria-labelledby="methodology-title">
       <div class="section-heading">
         <div>
@@ -194,12 +234,13 @@
         </div>
       </div>
       <div class="methodology-grid">
-        <p><strong>数据范围：</strong>世界黄金协会统计的全球实物黄金 ETF 及类似产品，按北美、欧洲、亚洲和其他地区汇总；页面同时展示资金流和持仓规模。</p>
+        <p><strong>数据范围：</strong>世界黄金协会统计的全球实物黄金 ETF 及类似产品，按北美、欧洲、亚洲和其他地区汇总；页面同时展示资金流、持仓规模和金价，并加入美国 10 年期实际利率。</p>
         <p><strong>单位：</strong>资金流与持仓的美元口径保留原始金额，图表按十亿美元展示。资金流吨数表示持仓变化，持仓吨数表示期末持有量；金价单位为美元/金衡盎司。</p>
-        <p><strong>更新频率：</strong>网页工作日自动检查世界黄金协会数据源；周度数据通常在下一周更新，月度更新可能替代当周更新。</p>
-        <p><strong>数据声明：</strong>数据可能因源站修订而变化。来源为 World Gold Council、Bloomberg、公司披露及 ICE Benchmark Administration。</p>
+        <p><strong>更新频率：</strong>网页工作日自动检查世界黄金协会与 FRED 数据源；FRED 实际利率按日增量合并，周末及美国节假日通常无新观测。</p>
+        <p><strong>数据声明：</strong>数据可能因源站修订而变化。ETF 与金价来源为 World Gold Council、Bloomberg、公司披露及 ICE Benchmark Administration；实际利率来源为美联储 H.15，经 FRED 发布。</p>
       </div>
       <p class="source-line">原始数据页面：<a href="https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows" target="_blank" rel="noreferrer">Gold ETFs, holdings and flows</a></p>
+      <p class="source-line source-line-secondary">实际利率页面：<a href="https://fred.stlouisfed.org/series/DFII10" target="_blank" rel="noreferrer">FRED DFII10</a></p>
     </section>
   </main>
 
