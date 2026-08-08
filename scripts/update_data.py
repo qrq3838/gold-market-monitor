@@ -1,8 +1,5 @@
 #!/usr/bin/env python
-"""Download and normalize World Gold Council regional gold ETF flow data.
-
-The output intentionally excludes the Gold Price (rhs) series.
-"""
+"""Download and normalize World Gold Council regional gold ETF flow data and gold prices."""
 
 from __future__ import annotations
 
@@ -27,7 +24,8 @@ REGIONS = (
     ("Asia", "#00d296"),
     ("Other", "#704287"),
 )
-EXCLUDED_SERIES = "Gold Price (rhs)"
+GOLD_PRICE_SERIES = "Gold Price (rhs)"
+GOLD_PRICE_COLOR = "#d8ab4c"
 
 
 def fetch_json(url: str) -> dict[str, Any]:
@@ -79,13 +77,21 @@ def normalize(source: dict[str, Any], previous: dict[str, Any] | None = None) ->
 
         normalized_units: dict[str, dict[str, list[float]]] = {}
         reference_dates: list[str] | None = None
+        gold_price_values: list[float] | None = None
 
         for unit in UNITS:
             raw_series = frequency_data["series"].get(unit)
             if not isinstance(raw_series, list):
                 raise ValueError(f"Missing {frequency}.{unit} series")
-            if any(item.get("name") == EXCLUDED_SERIES for item in raw_series):
-                raw_series = [item for item in raw_series if item.get("name") != EXCLUDED_SERIES]
+            price_series = [item for item in raw_series if item.get("name") == GOLD_PRICE_SERIES]
+            if len(price_series) != 1:
+                raise ValueError(f"Expected one gold price series in {frequency}.{unit}")
+            price_points = price_series[0].get("data")
+            if not isinstance(price_points, list) or not price_points:
+                raise ValueError(f"Empty gold price series in {frequency}.{unit}")
+            price_dates = [timestamp_to_date(point[0]) for point in price_points]
+            unit_gold_prices = [float(point[1]) for point in price_points]
+            raw_series = [item for item in raw_series if item.get("name") != GOLD_PRICE_SERIES]
 
             by_name = {item.get("name"): item for item in raw_series}
             if set(by_name) != set(region_names):
@@ -106,12 +112,20 @@ def normalize(source: dict[str, Any], previous: dict[str, Any] | None = None) ->
                     raise ValueError(f"Date mismatch in {frequency}.{unit}.{region_name}")
                 unit_values[region_name] = values
             normalized_units[unit] = unit_values
+            if price_dates != reference_dates:
+                raise ValueError(f"Gold price date mismatch in {frequency}.{unit}")
+            if gold_price_values is None:
+                gold_price_values = unit_gold_prices
+            elif unit_gold_prices != gold_price_values:
+                raise ValueError(f"Gold price value mismatch between units in {frequency}")
 
         assert reference_dates is not None
+        assert gold_price_values is not None
         normalized_frequencies[frequency] = {
             "dates": reference_dates,
             "usd": normalized_units["usd"],
             "tonnes": normalized_units["tonnes"],
+            "gold_price_usd_per_oz": gold_price_values,
         }
         observation_counts[frequency] = len(reference_dates)
 
@@ -135,7 +149,11 @@ def normalize(source: dict[str, Any], previous: dict[str, Any] | None = None) ->
         "api_url": API_URL,
         "as_of_date": as_of_date,
         "downloaded_at_utc": downloaded_at,
-        "excluded_series": [EXCLUDED_SERIES],
+        "gold_price": {
+            "source_series": GOLD_PRICE_SERIES,
+            "unit": "US dollars per troy ounce",
+            "color": GOLD_PRICE_COLOR,
+        },
         "units": {
             "usd": "US dollars",
             "tonnes": "tonnes",
@@ -169,6 +187,19 @@ def render_csv(payload: dict[str, Any]) -> str:
     return output.getvalue()
 
 
+def render_gold_price_csv(payload: dict[str, Any]) -> str:
+    import io
+
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(("frequency", "date", "gold_price_usd_per_oz"))
+    for frequency in FREQUENCIES:
+        block = payload["frequencies"][frequency]
+        for date, value in zip(block["dates"], block["gold_price_usd_per_oz"]):
+            writer.writerow((frequency, date, format(value, ".10f").rstrip("0").rstrip(".")))
+    return output.getvalue()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -181,6 +212,7 @@ def main() -> int:
 
     json_path = args.output_dir / "gold_etf_flows_by_region.json"
     csv_path = args.output_dir / "gold_etf_flows_by_region.csv"
+    gold_price_csv_path = args.output_dir / "gold_price_by_frequency.csv"
     previous = None
     if json_path.exists():
         try:
@@ -191,8 +223,9 @@ def main() -> int:
     payload = normalize(fetch_json(API_URL), previous)
     atomic_write_text(json_path, json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
     atomic_write_text(csv_path, render_csv(payload))
+    atomic_write_text(gold_price_csv_path, render_gold_price_csv(payload))
     counts = ", ".join(f"{key}={value}" for key, value in payload["observation_counts"].items())
-    print(f"Updated through {payload['as_of_date']} ({counts}); excluded {EXCLUDED_SERIES}")
+    print(f"Updated through {payload['as_of_date']} ({counts}); included {GOLD_PRICE_SERIES}")
     return 0
 
 
