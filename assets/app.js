@@ -14,12 +14,14 @@
     Monthly: "月度",
     Weekly: "周度"
   };
+  const GOLD_PRICE_LABEL = "金价";
 
   const state = {
     payload: null,
     unit: "tonnes",
     frequency: "Weekly",
     visibleRegions: new Set(),
+    showGoldPrice: true,
     startIndex: 0,
     endIndex: 0,
     chart: null
@@ -66,6 +68,10 @@
 
   function formatTonnes(value, signed = false) {
     return `${signed ? signedFormatter.format(value) : numberFormatter.format(value)} 吨`;
+  }
+
+  function formatGoldPrice(value) {
+    return `US$${numberFormatter.format(value)}/oz`;
   }
 
   function setSignedClass(element, value) {
@@ -137,6 +143,23 @@
       });
       els.legend.append(button);
     });
+
+    const priceButton = document.createElement("button");
+    priceButton.type = "button";
+    priceButton.setAttribute("aria-pressed", String(state.showGoldPrice));
+    priceButton.setAttribute("aria-label", `${state.showGoldPrice ? "隐藏" : "显示"}金价曲线`);
+    const priceLine = document.createElement("span");
+    priceLine.className = "legend-line";
+    priceLine.style.background = state.payload.gold_price.color;
+    const priceLabel = document.createElement("span");
+    priceLabel.textContent = GOLD_PRICE_LABEL;
+    priceButton.append(priceLine, priceLabel);
+    priceButton.addEventListener("click", () => {
+      state.showGoldPrice = !state.showGoldPrice;
+      renderLegend();
+      renderChart();
+    });
+    els.legend.append(priceButton);
   }
 
   function updateRangeInputs() {
@@ -168,15 +191,40 @@
     const regions = state.payload.regions.filter((region) => state.visibleRegions.has(region.name));
     const unitTitle = state.unit === "usd" ? "资金流（十亿美元）" : "需求变化（吨）";
     const selectedUnit = data[state.unit];
+    const goldPriceColor = state.payload.gold_price.color;
+    const barSeries = regions.map((region) => ({
+      name: REGION_LABELS[region.name],
+      type: "bar",
+      stack: "regional-flow",
+      yAxisIndex: 0,
+      barMaxWidth: state.frequency === "Weekly" ? 8 : 28,
+      itemStyle: { color: region.color },
+      emphasis: { focus: "series" },
+      data: selectedUnit[region.name].map((value) => value / scale)
+    }));
+    const priceSeries = state.showGoldPrice ? [{
+      name: GOLD_PRICE_LABEL,
+      type: "line",
+      yAxisIndex: 1,
+      data: data.gold_price_usd_per_oz,
+      symbol: "none",
+      showSymbol: false,
+      connectNulls: false,
+      smooth: false,
+      z: 10,
+      lineStyle: { color: goldPriceColor, width: 3 },
+      itemStyle: { color: goldPriceColor },
+      emphasis: { focus: "series", lineStyle: { width: 4 } }
+    }] : [];
 
     state.chart.setOption({
       animationDuration: 350,
       aria: {
         enabled: true,
-        description: `全球黄金ETF${FREQUENCY_LABELS[state.frequency]}${unitTitle}按地区柱状图，不含金价。`
+        description: `全球黄金ETF${FREQUENCY_LABELS[state.frequency]}${unitTitle}按地区柱状图，以及右轴金价曲线。`
       },
       color: regions.map((region) => region.color),
-      grid: { left: 72, right: 24, top: 42, bottom: 92, containLabel: false },
+      grid: { left: window.innerWidth < 680 ? 48 : 72, right: window.innerWidth < 680 ? 56 : 78, top: 42, bottom: 92, containLabel: false },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
@@ -190,11 +238,13 @@
             value: selectedUnit[region.name][index]
           }));
           const total = rows.reduce((sum, row) => sum + row.value, 0);
+          const goldPrice = data.gold_price_usd_per_oz[index];
           const formatValue = state.unit === "usd" ? (value) => formatUsd(value, true) : (value) => formatTonnes(value, true);
           return [
             `<strong>${formatDate(data.dates[index])}</strong>`,
             ...rows.map((row) => `<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${row.region.color};margin-right:7px"></span>${REGION_LABELS[row.region.name]}：${formatValue(row.value)}`),
-            `<span style="display:inline-block;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.2);width:100%">合计：<strong>${formatValue(total)}</strong></span>`
+            `<span style="display:inline-block;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.2);width:100%">合计：<strong>${formatValue(total)}</strong></span>`,
+            `<span style="display:inline-block;width:18px;height:3px;border-radius:2px;background:${goldPriceColor};margin-right:7px;vertical-align:middle"></span>金价：<strong>${formatGoldPrice(goldPrice)}</strong>`
           ].join("<br>");
         }
       },
@@ -211,13 +261,26 @@
           margin: 14
         }
       },
-      yAxis: {
-        type: "value",
-        name: unitTitle,
-        nameTextStyle: { color: "#53656e", align: "left", padding: [0, 0, 8, -54] },
-        splitLine: { lineStyle: { color: "#d9e0e3", type: "dashed" } },
-        axisLabel: { color: "#53656e", formatter: (value) => numberFormatter.format(value) }
-      },
+      yAxis: [
+        {
+          type: "value",
+          name: unitTitle,
+          nameTextStyle: { color: "#53656e", align: "left", padding: [0, 0, 8, -54] },
+          splitLine: { lineStyle: { color: "#d9e0e3", type: "dashed" } },
+          axisLabel: { color: "#53656e", formatter: (value) => numberFormatter.format(value) }
+        },
+        {
+          type: "value",
+          show: state.showGoldPrice,
+          min: 0,
+          name: "金价（US$/oz）",
+          nameTextStyle: { color: "#8f6c27", align: "right", padding: [0, -4, 8, 0] },
+          axisLine: { show: true, lineStyle: { color: goldPriceColor } },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: { color: "#8f6c27", formatter: (value) => numberFormatter.format(value) }
+        }
+      ],
       dataZoom: [
         {
           type: "inside",
@@ -239,15 +302,7 @@
           selectedDataBackground: { lineStyle: { color: "#31596b" }, areaStyle: { color: "#d8ab4c" } }
         }
       ],
-      series: regions.map((region) => ({
-        name: REGION_LABELS[region.name],
-        type: "bar",
-        stack: "regional-flow",
-        barMaxWidth: state.frequency === "Weekly" ? 8 : 28,
-        itemStyle: { color: region.color },
-        emphasis: { focus: "series" },
-        data: selectedUnit[region.name].map((value) => value / scale)
-      }))
+      series: [...barSeries, ...priceSeries]
     }, true);
 
     updateRangeInputs();
