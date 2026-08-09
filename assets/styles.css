@@ -283,6 +283,7 @@ h2 {
 
 #chart-status,
 #holdings-chart-status,
+#comex-gold-chart-status,
 #real-yield-chart-status,
 #dollar-index-chart-status { margin: 0; color: var(--muted); font-size: 0.82rem; }
 
