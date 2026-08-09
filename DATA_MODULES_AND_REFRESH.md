@@ -1,6 +1,6 @@
 # 黄金市场监测网站：模块、数据源与日更逻辑
 
-最后更新：2026-08-08
+最后更新：2026-08-09
 
 项目目录（服务器）：`F:\res4\rqqin\strategy research\gold`
 
@@ -13,12 +13,14 @@
 | Gold ETF flows by region | 北美、欧洲、亚洲、其他地区的资金流柱状图，并叠加金价曲线 | 资金流：美元或吨；金价：US$/oz；年、季、月、周四种频率 | `data/gold_etf_flows_by_region.json`、`data/gold_etf_flows_by_region.csv`、`data/gold_price_by_frequency.csv` | World Gold Council（WGC）Gold ETFs holdings and flows 页面，接口 `flows-chart2` | 工作日检查；源站有新一期数据时更新 |
 | Gold ETFs holdings by region | 北美、欧洲、亚洲、其他地区的持仓堆叠面积图，并叠加金价曲线 | 持仓：吨或管理资产规模（美元）；金价：US$/oz；年、季、月、周四种频率 | `data/gold_etf_holdings_by_region.json`、`data/gold_etf_holdings_by_region.csv` | WGC Gold ETFs holdings and flows 页面，接口 `holdings-chart2` | 工作日检查；源站有新一期数据时更新 |
 | 美国 10 年期国债实际收益率 | 美国 10 年期通胀保值国债（TIPS）恒定期限实际收益率曲线 | DFII10；单位：%；日频；非季调；非交易日缺失值不插值 | `data/us_10y_real_yield.json`、`data/us_10y_real_yield.csv` | 历史基线：用户提供的 Excel（表内标注美国财政部、Wind）；增量：FRED DFII10，美联储 H.15 | 工作日每日检查并增量更新 |
+| 美元指数 | ICE 美元指数日度收盘走势 | Yahoo Finance `DX-Y.NYB`；单位：指数点；日频；图表使用 Close | `data/us_dollar_index.json`、`data/us_dollar_index.csv` | Yahoo Finance，交易所元数据为 ICE Futures | 工作日每日检查并更新 |
 
 ## 二、原始数据页面
 
 - WGC ETF 数据：<https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows>
 - FRED DFII10：<https://fred.stlouisfed.org/series/DFII10>
 - FRED CSV：<https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFII10>
+- Yahoo Finance 美元指数：<https://finance.yahoo.com/quote/DX-Y.NYB/history/>
 
 DFII10 的正式名称为“10 年期通胀保值美国国债恒定期限市场收益率”，原始发布机构为美联储，所属发布为 H.15 Selected Interest Rates。FRED 页面口径为 Percent、Daily、Not Seasonally Adjusted。
 
@@ -54,7 +56,16 @@ GitHub Actions 工作流位于 `.github/workflows/update-data.yml`，计划时�
 5. 写入前校验日期唯一、严格递增、观测数不少于 1,000，且数值位于合理范围 `(-10%, 20%)`。
 6. 通过原子替换生成 `data/us_10y_real_yield.json` 和 `data/us_10y_real_yield.csv`；没有增量或修订时不产生提交。
 
-### 3. 发布
+### 3. 美元指数
+
+1. `scripts/update_dollar_index.py` 通过 Yahoo Finance 图表接口下载 `DX-Y.NYB` 全量日频历史；主接口失败时自动尝试 Yahoo 的备用图表主机。
+2. 校验返回标的必须为 `DX-Y.NYB`，并校验时间戳与 OHLC、复权收盘数组对齐。
+3. 剔除 Close 为空的周末或缺失占位，不做插值；有效日期必须唯一、严格递增。
+4. 对收盘值执行合理区间校验，并确认收盘价位于当日最高价与最低价之间。
+5. JSON 为网页使用的紧凑日期/收盘值序列；CSV 保留 Date、Open、High、Low、Close、Adjusted Close。
+6. 当前有效覆盖范围为 1971-01-04 至 2026-08-07，共 14,117 条日度观测，最新收盘值为 99.60。
+
+### 4. 发布
 
 1. 任一数据文件发生真实变化后，GitHub Actions 以机器人账号提交并推送。
 2. GitHub Pages 从主分支重新发布网站。
@@ -66,6 +77,7 @@ GitHub Actions 工作流位于 `.github/workflows/update-data.yml`，计划时�
 - 所有数据文件先写入同目录临时文件，再原子替换，避免留下半写入文件。
 - ETF 模块重点巡检 WGC `as_of_date` 是否前进、周度观测数是否增加、两个接口日期是否一致。
 - 实际利率模块重点巡检 `as_of_date`、最新值与 FRED 页面是否一致；周末及美国节假日无新观测属于正常情况。
+- 美元指数模块重点巡检 `as_of_date`、最新收盘值和有效观测数；Yahoo 返回的空值占位被忽略属于正常处理。
 - 如果连续两个美国工作日没有新实际利率数据，先检查 FRED 页面是否延迟，再检查 GitHub Actions 日志。
 
 ## 六、服务器手工更新命令
@@ -76,6 +88,9 @@ GitHub Actions 工作流位于 `.github/workflows/update-data.yml`，计划时�
 Set-Location 'F:\res4\rqqin\strategy research\gold'
 & 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_data.py'
 & 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_real_yield.py'
+& 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_dollar_index.py'
 ```
 
-运行后应检查两个脚本的末行摘要、数据文件修改时间、最新日期和观测数，再决定是否提交发布。
+运行后应检查各脚本的末行摘要、数据文件修改时间、最新日期和观测数，再决定是否提交发布。
+
+注意：Yahoo Finance 可能按出口 IP 限制图表接口。若服务器手工运行美元指数脚本返回 HTTP 403，脚本会在写文件前失败并保留现有数据；此时应在 GitHub Actions 中手工触发 `Update gold market data`，以该自动更新链路为网站日更的正式运行环境。

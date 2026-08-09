@@ -157,6 +157,11 @@ h2 {
   font-weight: 750;
 }
 
+.date-badge-olive {
+  color: #43511f;
+  background: #e9eddc;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -278,7 +283,8 @@ h2 {
 
 #chart-status,
 #holdings-chart-status,
-#real-yield-chart-status { margin: 0; color: var(--muted); font-size: 0.82rem; }
+#real-yield-chart-status,
+#dollar-index-chart-status { margin: 0; color: var(--muted); font-size: 0.82rem; }
 
 .region-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .region-legend button {
