@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="黄金市场监测：COMEX 黄金期货、全球黄金 ETF 资金流与持仓、美国实际利率及美元指数。">
-  <title>黄金市场监测｜COMEX、ETF、实际利率与美元指数</title>
+  <meta name="description" content="黄金市场监测：COMEX 黄金期货、中国人民银行月度购金、全球黄金 ETF、美国实际利率及美元指数。">
+  <title>黄金市场监测｜COMEX、央行购金、ETF 与宏观指标</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="assets/styles.css">
   <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
   <script defer src="assets/gold-overlay.js"></script>
   <script defer src="assets/comex-gold.js"></script>
+  <script defer src="assets/pboc-gold.js"></script>
   <script defer src="assets/app.js"></script>
   <script defer src="assets/holdings.js"></script>
   <script defer src="assets/real-yield.js"></script>
@@ -22,10 +23,10 @@
       <div>
         <p class="eyebrow">GOLD MARKET MONITOR</p>
         <h1>黄金市场监测</h1>
-        <p class="header-subtitle">COMEX 金价、全球黄金 ETF、实际利率与美元指数</p>
+        <p class="header-subtitle">COMEX 金价、央行购金、全球黄金 ETF 与宏观指标</p>
       </div>
       <div class="header-meta">
-        <p>数据来源：World Gold Council、FRED、Yahoo Finance</p>
+        <p>数据来源：SAFE、World Gold Council、FRED、Yahoo Finance</p>
         <p>ETF 数据更新至 <strong id="header-date">载入中</strong></p>
         <p class="disclaimer">仅供研究交流，不构成任何投资建议。</p>
       </div>
@@ -37,6 +38,7 @@
       <span class="nav-label">目录</span>
       <a href="#overview">最新概览</a>
       <a href="#comex-gold">COMEX 金价</a>
+      <a href="#pboc-gold">央行购金</a>
       <a href="#etf-flows">ETF 资金流</a>
       <a href="#etf-holdings">ETF 持仓</a>
       <a href="#real-yield">美国实际利率</a>
@@ -113,6 +115,47 @@
 
         <div id="comex-gold-chart" class="flow-chart" role="img" aria-label="COMEX 黄金期货日度收盘价走势曲线图"></div>
         <p class="chart-note">单位为美元/金衡盎司（US$/oz），日频；使用 Yahoo Finance GC=F 的 Close 字段。空值占位被剔除，不做插值；CSV 同时保留开盘、最高、最低、收盘、复权收盘和成交量。</p>
+      </article>
+    </section>
+
+    <section id="pboc-gold" class="page-section" aria-labelledby="pboc-gold-title">
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <p class="section-kicker">CENTRAL BANK GOLD</p>
+            <h2 id="pboc-gold-title">中国人民银行月度增持黄金</h2>
+            <p>根据国家外汇管理局月末官方黄金储备的实物存量，计算相邻月份的增持量；柱状图以吨为单位。</p>
+          </div>
+          <div class="download-links" aria-label="中国人民银行月度购金数据下载">
+            <a href="data/pboc_gold_reserve_changes.csv" download>下载 CSV</a>
+            <a href="data/pboc_gold_reserve_changes.json" download>下载 JSON</a>
+          </div>
+        </div>
+
+        <div class="control-row range-controls">
+          <div class="date-range">
+            <label>开始月份 <input id="pboc-gold-start-date" type="date"></label>
+            <span>至</span>
+            <label>结束月份 <input id="pboc-gold-end-date" type="date"></label>
+          </div>
+          <div id="pboc-gold-range-buttons" class="quick-ranges" role="group" aria-label="央行购金快速选择时间范围">
+            <button type="button" data-years="1">近 1 年</button>
+            <button type="button" data-years="3">近 3 年</button>
+            <button type="button" data-years="5">近 5 年</button>
+            <button type="button" data-years="all" class="active">全部历史</button>
+          </div>
+        </div>
+
+        <div class="chart-status-row">
+          <p id="pboc-gold-chart-status" role="status">正在载入央行购金数据…</p>
+          <div class="chart-status-actions">
+            <span id="pboc-gold-latest" class="date-badge">—</span>
+            <div id="pboc-gold-series-legend" class="region-legend" aria-label="央行购金图显示控制"></div>
+          </div>
+        </div>
+
+        <div id="pboc-gold-chart" class="flow-chart" role="img" aria-label="中国人民银行月度增持黄金吨数柱状图"></div>
+        <p class="chart-note">左轴为相邻月末黄金储备存量之差（吨）；0 表示持有量未变，若未来出现负值则表示减持。2016 年 1 月仅作为实物存量基准，首笔可计算变化为 2016 年 2 月。可选金色曲线使用右轴，表示当月月末或此前最近交易日的 COMEX 黄金期货收盘价（US$/oz）。</p>
       </article>
     </section>
 
@@ -322,15 +365,16 @@
         </div>
       </div>
       <div class="methodology-grid">
-        <p><strong>数据范围：</strong>页面展示 COMEX 连续黄金期货价格，以及世界黄金协会统计的全球实物黄金 ETF 资金流和持仓，并加入美国 10 年期实际利率与美元指数。</p>
-        <p><strong>单位：</strong>资金流与持仓的美元口径保留原始金额，图表按十亿美元展示。资金流吨数表示持仓变化，持仓吨数表示期末持有量；所有指标图的可选右轴金价统一为 COMEX GC=F 收盘价，单位为美元/金衡盎司。</p>
-        <p><strong>更新频率：</strong>网页工作日自动检查 World Gold Council、FRED 与 Yahoo Finance；COMEX 金价、实际利率和美元指数按日更新，周末及美国节假日通常无新观测。</p>
-        <p><strong>数据声明：</strong>数据可能因源站修订而变化。ETF 资金流与持仓来自 World Gold Council；所有图表使用的 COMEX 金价与美元指数来自 Yahoo Finance；实际利率来源为美联储 H.15，经 FRED 发布。</p>
+        <p><strong>数据范围：</strong>页面展示 COMEX 连续黄金期货价格、中国人民银行月度黄金储备增持量、全球实物黄金 ETF 资金流与持仓，以及美国 10 年期实际利率和美元指数。</p>
+        <p><strong>单位：</strong>央行购金按 SAFE 月末实物储备的万盎司差分计算，并按 1 金衡盎司 = 31.1034768 克换算为吨。ETF 美元口径按十亿美元展示；所有指标图的可选右轴金价统一为 COMEX GC=F 收盘价。</p>
+        <p><strong>更新频率：</strong>网页工作日自动检查 SAFE、World Gold Council、FRED 与 Yahoo Finance；SAFE 月度官方储备资产通常于次月发布，日频市场数据在交易日更新。</p>
+        <p><strong>数据声明：</strong>数据可能因源站修订而变化。央行黄金储备来自 SAFE 官方储备资产；ETF 数据来自 World Gold Council；COMEX 金价和美元指数来自 Yahoo Finance；实际利率来源为美联储 H.15，经 FRED 发布。</p>
       </div>
       <p class="source-line">原始数据页面：<a href="https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows" target="_blank" rel="noreferrer">Gold ETFs, holdings and flows</a></p>
       <p class="source-line source-line-secondary">COMEX 黄金期货页面：<a href="https://finance.yahoo.com/quote/GC%3DF/history/" target="_blank" rel="noreferrer">Yahoo Finance GC=F</a></p>
       <p class="source-line source-line-secondary">实际利率页面：<a href="https://fred.stlouisfed.org/series/DFII10" target="_blank" rel="noreferrer">FRED DFII10</a></p>
       <p class="source-line source-line-secondary">美元指数页面：<a href="https://finance.yahoo.com/quote/DX-Y.NYB/history/" target="_blank" rel="noreferrer">Yahoo Finance DX-Y.NYB</a></p>
+      <p class="source-line source-line-secondary">央行黄金储备页面：<a href="https://www.safe.gov.cn/safe/gfcbzc/index.html" target="_blank" rel="noreferrer">国家外汇管理局官方储备资产</a></p>
     </section>
   </main>
 

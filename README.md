@@ -2,9 +2,10 @@
 
 公开网页：[https://qrq3838.github.io/gold-market-monitor/](https://qrq3838.github.io/gold-market-monitor/)
 
-当前页面展示 COMEX 黄金期货、全球实物黄金 ETF 地区资金流与持仓、美国实际利率和美元指数，支持：
+当前页面展示 COMEX 黄金期货、中国人民银行月度购金、全球实物黄金 ETF 地区资金流与持仓、美国实际利率和美元指数，支持：
 
 - COMEX 黄金期货（Yahoo Finance GC=F）完整日度收盘曲线；
+- 中国人民银行月末黄金储备的月度增持柱状图（SAFE 官方储备资产），并叠加可开关的 COMEX 金价右轴；
 - 吨数和美元两种口径；
 - 年度、季度、月度和周度四种频率；
 - 北美、欧洲、亚洲和其他地区的交互式资金流堆叠柱状图；
@@ -24,6 +25,7 @@
 - `data/gold_etf_holdings_by_region.csv`：持仓长表，包含频率、日期、地区、美元管理资产、持仓吨数和金价；
 - `data/gold_price_by_frequency.csv`：WGC 接口附带的年度、季度、月度和周度金价，仅作为源数据留存，不再用于网页曲线。
 - `data/comex_gold_futures.json`、`data/comex_gold_futures.csv`：COMEX 连续黄金期货日度收盘及 OHLC、成交量数据。
+- `data/pboc_gold_reserve_changes.json`、`data/pboc_gold_reserve_changes.csv`：SAFE 月末黄金储备万盎司存量、换算吨数及月度差分。
 - `data/us_10y_real_yield.json`、`data/us_10y_real_yield.csv`：美国 10 年期实际收益率日度数据。
 - `data/us_dollar_index.json`、`data/us_dollar_index.csv`：美元指数日度收盘及 OHLC 数据。
 
@@ -31,12 +33,13 @@
 
 ```powershell
 python scripts/update_data.py
+python scripts/update_pboc_gold_reserves.py
 python scripts/update_real_yield.py
 python scripts/update_comex_gold.py
 python scripts/update_dollar_index.py
 ```
 
-数据来源：[World Gold Council — Gold ETFs, holdings and flows](https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows)、[FRED DFII10](https://fred.stlouisfed.org/series/DFII10)、[Yahoo Finance GC=F](https://finance.yahoo.com/quote/GC%3DF/history/)、[Yahoo Finance DX-Y.NYB](https://finance.yahoo.com/quote/DX-Y.NYB/history/)
+数据来源：[国家外汇管理局 — 官方储备资产](https://www.safe.gov.cn/safe/gfcbzc/index.html)、[World Gold Council — Gold ETFs, holdings and flows](https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows)、[FRED DFII10](https://fred.stlouisfed.org/series/DFII10)、[Yahoo Finance GC=F](https://finance.yahoo.com/quote/GC%3DF/history/)、[Yahoo Finance DX-Y.NYB](https://finance.yahoo.com/quote/DX-Y.NYB/history/)
 
 所有指标图的可选金价曲线统一读取 `GC=F`。网页按指标自身日期取当天或此前最近一个 COMEX 有效收盘价，不使用未来值；美元指数早于 2000-08-30 的历史区间不显示金价。
 
