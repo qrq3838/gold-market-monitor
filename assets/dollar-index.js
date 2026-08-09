@@ -3,13 +3,21 @@
 
   const DATA_URL = "data/us_dollar_index.json";
   const LINE_COLOR = "#697b36";
-  const state = { payload: null, startIndex: 0, endIndex: 0, chart: null };
+  const state = {
+    payload: null,
+    goldValues: [],
+    showGoldPrice: true,
+    startIndex: 0,
+    endIndex: 0,
+    chart: null
+  };
   const els = {
     rangeButtons: document.getElementById("dollar-index-range-buttons"),
     startDate: document.getElementById("dollar-index-start-date"),
     endDate: document.getElementById("dollar-index-end-date"),
     status: document.getElementById("dollar-index-chart-status"),
     latest: document.getElementById("dollar-index-latest"),
+    legend: document.getElementById("dollar-index-series-legend"),
     chart: document.getElementById("dollar-index-chart"),
     error: document.getElementById("error-banner")
   };
@@ -24,6 +32,19 @@
       month: "2-digit",
       day: "2-digit"
     }).format(new Date(`${day}T00:00:00Z`));
+  }
+
+  function formatGoldPrice(value) {
+    return `US$${numberFormatter.format(value)}/oz`;
+  }
+
+  function renderLegend() {
+    els.legend.replaceChildren();
+    window.GoldOverlay.appendToggle(els.legend, state.showGoldPrice, () => {
+      state.showGoldPrice = !state.showGoldPrice;
+      renderLegend();
+      renderChart();
+    });
   }
 
   function nearestIndex(day, mode) {
@@ -51,15 +72,30 @@
 
   function renderChart() {
     const { dates, values } = state.payload;
+    const goldColor = window.GoldOverlay.COLOR;
+    const goldSeries = state.showGoldPrice ? [{
+      name: window.GoldOverlay.LABEL,
+      type: "line",
+      yAxisIndex: 1,
+      data: state.goldValues,
+      symbol: "none",
+      showSymbol: false,
+      connectNulls: false,
+      sampling: "lttb",
+      z: 10,
+      lineStyle: { color: goldColor, width: 2.6 },
+      itemStyle: { color: goldColor },
+      emphasis: { focus: "series", lineStyle: { width: 3.6 } }
+    }] : [];
     state.chart.setOption({
       animationDuration: 350,
       aria: {
         enabled: true,
-        description: "美元指数日度收盘走势曲线，单位为指数点。"
+        description: "美元指数日度收盘走势曲线，以及可选右轴COMEX黄金期货价格曲线。"
       },
       grid: {
         left: window.innerWidth < 680 ? 50 : 72,
-        right: window.innerWidth < 680 ? 22 : 36,
+        right: state.showGoldPrice ? (window.innerWidth < 680 ? 58 : 78) : (window.innerWidth < 680 ? 22 : 36),
         top: 42,
         bottom: 92
       },
@@ -71,7 +107,14 @@
         textStyle: { color: "#fff" },
         formatter(params) {
           const index = params[0]?.dataIndex ?? 0;
-          return `<strong>${formatDate(dates[index])}</strong><br><span style="display:inline-block;width:18px;height:3px;border-radius:2px;background:${LINE_COLOR};margin-right:7px;vertical-align:middle"></span>美元指数收盘：<strong>${numberFormatter.format(values[index])}</strong>`;
+          const lines = [
+            `<strong>${formatDate(dates[index])}</strong>`,
+            `<span style="display:inline-block;width:18px;height:3px;border-radius:2px;background:${LINE_COLOR};margin-right:7px;vertical-align:middle"></span>美元指数收盘：<strong>${numberFormatter.format(values[index])}</strong>`
+          ];
+          if (state.showGoldPrice && state.goldValues[index] !== null) {
+            lines.push(`<span style="display:inline-block;width:18px;height:3px;border-radius:2px;background:${goldColor};margin-right:7px;vertical-align:middle"></span>${window.GoldOverlay.LABEL}：<strong>${formatGoldPrice(state.goldValues[index])}</strong>`);
+          }
+          return lines.join("<br>");
         }
       },
       xAxis: {
@@ -90,14 +133,27 @@
           }
         }
       },
-      yAxis: {
-        type: "value",
-        name: "美元指数（点）",
-        nameTextStyle: { color: "#53656e", align: "left", padding: [0, 0, 8, -54] },
-        scale: true,
-        splitLine: { lineStyle: { color: "#d9e0e3", type: "dashed" } },
-        axisLabel: { color: "#53656e", formatter: (value) => numberFormatter.format(value) }
-      },
+      yAxis: [
+        {
+          type: "value",
+          name: "美元指数（点）",
+          nameTextStyle: { color: "#53656e", align: "left", padding: [0, 0, 8, -54] },
+          scale: true,
+          splitLine: { lineStyle: { color: "#d9e0e3", type: "dashed" } },
+          axisLabel: { color: "#53656e", formatter: (value) => numberFormatter.format(value) }
+        },
+        {
+          type: "value",
+          show: state.showGoldPrice,
+          min: 0,
+          name: "COMEX 金价（US$/oz）",
+          nameTextStyle: { color: "#8f6c27", align: "right", padding: [0, -4, 8, 0] },
+          axisLine: { show: true, lineStyle: { color: goldColor } },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: { color: "#8f6c27", formatter: (value) => numberFormatter.format(value) }
+        }
+      ],
       dataZoom: [
         {
           type: "inside",
@@ -129,7 +185,7 @@
         lineStyle: { color: LINE_COLOR, width: 2.4 },
         itemStyle: { color: LINE_COLOR },
         areaStyle: { color: LINE_COLOR, opacity: 0.08 }
-      }]
+      }, ...goldSeries]
     }, true);
     updateRangeLabels();
   }
@@ -179,14 +235,20 @@
   async function init() {
     try {
       if (!window.echarts) throw new Error("美元指数图表组件未能载入，请检查网络连接。");
-      const response = await fetch(DATA_URL, { cache: "no-store" });
+      if (!window.GoldOverlay) throw new Error("COMEX 金价叠加组件未能载入");
+      const [response, goldPayload] = await Promise.all([
+        fetch(DATA_URL, { cache: "no-store" }),
+        window.GoldOverlay.load()
+      ]);
       if (!response.ok) throw new Error(`美元指数数据文件载入失败（${response.status}）`);
       state.payload = await response.json();
       if (!Array.isArray(state.payload.dates) || state.payload.dates.length !== state.payload.values?.length) {
         throw new Error("美元指数数据格式不完整");
       }
+      state.goldValues = window.GoldOverlay.alignToDates(state.payload.dates, goldPayload);
       state.chart = window.echarts.init(els.chart, null, { renderer: "canvas" });
       els.latest.textContent = `${formatDate(state.payload.as_of_date)} · ${numberFormatter.format(state.payload.values.at(-1))}`;
+      renderLegend();
       bindControls();
       setRange("5");
     } catch (error) {

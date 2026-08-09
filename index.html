@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="assets/styles.css">
   <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+  <script defer src="assets/gold-overlay.js"></script>
   <script defer src="assets/comex-gold.js"></script>
   <script defer src="assets/app.js"></script>
   <script defer src="assets/holdings.js"></script>
@@ -125,7 +126,7 @@
           </div>
           <div class="download-links" aria-label="数据下载">
             <a href="data/gold_etf_flows_by_region.csv" download>下载 CSV</a>
-            <a href="data/gold_price_by_frequency.csv" download>下载金价</a>
+            <a href="data/comex_gold_futures.csv" download>下载 COMEX 金价</a>
             <a href="data/gold_etf_flows_by_region.json" download>下载 JSON</a>
           </div>
         </div>
@@ -169,7 +170,7 @@
         </div>
 
         <div id="flow-chart" class="flow-chart" role="img" aria-label="全球黄金ETF资金流按地区柱状图"></div>
-        <p class="chart-note">柱状图使用左轴：正值表示净流入或黄金需求增加，负值表示净流出或黄金需求减少；金色曲线使用右轴，表示金价（US$/oz）。</p>
+        <p class="chart-note">柱状图使用左轴：正值表示净流入或黄金需求增加，负值表示净流出或黄金需求减少；可选金色曲线使用右轴，表示 COMEX 黄金期货收盘价（US$/oz）。</p>
       </article>
     </section>
 
@@ -183,6 +184,7 @@
           </div>
           <div class="download-links" aria-label="持仓数据下载">
             <a href="data/gold_etf_holdings_by_region.csv" download>下载 CSV</a>
+            <a href="data/comex_gold_futures.csv" download>下载 COMEX 金价</a>
             <a href="data/gold_etf_holdings_by_region.json" download>下载 JSON</a>
           </div>
         </div>
@@ -226,7 +228,7 @@
         </div>
 
         <div id="holdings-chart" class="flow-chart" role="img" aria-label="全球黄金 ETF 持仓按地区堆叠面积图"></div>
-        <p class="chart-note">堆叠面积使用左轴：吨数口径表示各地区黄金 ETF 持仓，美元口径表示管理资产规模（US$bn）；金色曲线使用右轴，表示金价（US$/oz）。</p>
+        <p class="chart-note">堆叠面积使用左轴：吨数口径表示各地区黄金 ETF 持仓，美元口径表示管理资产规模（US$bn）；可选金色曲线使用右轴，表示 COMEX 黄金期货收盘价（US$/oz）。</p>
       </article>
     </section>
 
@@ -260,11 +262,14 @@
 
         <div class="chart-status-row">
           <p id="real-yield-chart-status" role="status">正在载入实际利率数据…</p>
-          <span id="real-yield-latest" class="date-badge">—</span>
+          <div class="chart-status-actions">
+            <span id="real-yield-latest" class="date-badge">—</span>
+            <div id="real-yield-series-legend" class="region-legend" aria-label="实际利率图显示控制"></div>
+          </div>
         </div>
 
         <div id="real-yield-chart" class="flow-chart" role="img" aria-label="美国 10 年期通胀保值国债实际收益率日度曲线图"></div>
-        <p class="chart-note">单位为百分比（%），日频、非季调；非交易日和缺失值不做插值。历史基线来自用户提供的 Excel，2026-08-07 之后由 FRED DFII10 自动增量更新。</p>
+        <p class="chart-note">左轴为实际收益率（%），日频、非季调；可选金色曲线使用右轴，表示 COMEX 黄金期货收盘价（US$/oz）。两组数据按当天或此前最近的 COMEX 有效交易日对齐，不使用未来值。</p>
       </article>
     </section>
 
@@ -298,11 +303,14 @@
 
         <div class="chart-status-row">
           <p id="dollar-index-chart-status" role="status">正在载入美元指数数据…</p>
-          <span id="dollar-index-latest" class="date-badge date-badge-olive">—</span>
+          <div class="chart-status-actions">
+            <span id="dollar-index-latest" class="date-badge date-badge-olive">—</span>
+            <div id="dollar-index-series-legend" class="region-legend" aria-label="美元指数图显示控制"></div>
+          </div>
         </div>
 
         <div id="dollar-index-chart" class="flow-chart" role="img" aria-label="美元指数日度收盘走势曲线图"></div>
-        <p class="chart-note">单位为指数点，日频；曲线使用 Yahoo Finance 的 Close 字段。周末及源站缺失占位被剔除，不做插值；CSV 同时保留开盘、最高、最低、收盘和复权收盘价。</p>
+        <p class="chart-note">左轴为美元指数点位，使用 Yahoo Finance 的 Close 字段；可选金色曲线使用右轴，表示 COMEX 黄金期货收盘价（US$/oz）。2000-08-30 以前无 GC=F 历史，金价曲线保持空白。</p>
       </article>
     </section>
 
@@ -315,9 +323,9 @@
       </div>
       <div class="methodology-grid">
         <p><strong>数据范围：</strong>页面展示 COMEX 连续黄金期货价格，以及世界黄金协会统计的全球实物黄金 ETF 资金流和持仓，并加入美国 10 年期实际利率与美元指数。</p>
-        <p><strong>单位：</strong>资金流与持仓的美元口径保留原始金额，图表按十亿美元展示。资金流吨数表示持仓变化，持仓吨数表示期末持有量；金价单位为美元/金衡盎司。</p>
+        <p><strong>单位：</strong>资金流与持仓的美元口径保留原始金额，图表按十亿美元展示。资金流吨数表示持仓变化，持仓吨数表示期末持有量；所有指标图的可选右轴金价统一为 COMEX GC=F 收盘价，单位为美元/金衡盎司。</p>
         <p><strong>更新频率：</strong>网页工作日自动检查 World Gold Council、FRED 与 Yahoo Finance；COMEX 金价、实际利率和美元指数按日更新，周末及美国节假日通常无新观测。</p>
-        <p><strong>数据声明：</strong>数据可能因源站修订而变化。ETF 图内金价及 ETF 数据来自 World Gold Council；COMEX 连续黄金期货与美元指数来自 Yahoo Finance；实际利率来源为美联储 H.15，经 FRED 发布。</p>
+        <p><strong>数据声明：</strong>数据可能因源站修订而变化。ETF 资金流与持仓来自 World Gold Council；所有图表使用的 COMEX 金价与美元指数来自 Yahoo Finance；实际利率来源为美联储 H.15，经 FRED 发布。</p>
       </div>
       <p class="source-line">原始数据页面：<a href="https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows" target="_blank" rel="noreferrer">Gold ETFs, holdings and flows</a></p>
       <p class="source-line source-line-secondary">COMEX 黄金期货页面：<a href="https://finance.yahoo.com/quote/GC%3DF/history/" target="_blank" rel="noreferrer">Yahoo Finance GC=F</a></p>

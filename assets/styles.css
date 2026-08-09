@@ -281,6 +281,14 @@ h2 {
   min-height: 48px;
 }
 
+.chart-status-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 #chart-status,
 #holdings-chart-status,
 #comex-gold-chart-status,
@@ -347,6 +355,7 @@ footer p { margin: 0; }
   .control-row, .chart-status-row { align-items: flex-start; flex-direction: column; }
   .control-row-primary > div:last-child { margin-left: 0; }
   .region-legend, .quick-ranges { justify-content: flex-start; }
+  .chart-status-actions { justify-content: flex-start; }
   .flow-chart { height: 480px; }
 }
 
