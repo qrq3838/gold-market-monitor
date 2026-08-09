@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="黄金市场监测：全球黄金 ETF 资金流、持仓规模、金价、美国实际利率与美元指数。">
-  <title>黄金市场监测｜ETF、实际利率与美元指数</title>
+  <meta name="description" content="黄金市场监测：COMEX 黄金期货、全球黄金 ETF 资金流与持仓、美国实际利率及美元指数。">
+  <title>黄金市场监测｜COMEX、ETF、实际利率与美元指数</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="assets/styles.css">
   <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+  <script defer src="assets/comex-gold.js"></script>
   <script defer src="assets/app.js"></script>
   <script defer src="assets/holdings.js"></script>
   <script defer src="assets/real-yield.js"></script>
@@ -20,7 +21,7 @@
       <div>
         <p class="eyebrow">GOLD MARKET MONITOR</p>
         <h1>黄金市场监测</h1>
-        <p class="header-subtitle">全球黄金 ETF、金价、实际利率与美元指数</p>
+        <p class="header-subtitle">COMEX 金价、全球黄金 ETF、实际利率与美元指数</p>
       </div>
       <div class="header-meta">
         <p>数据来源：World Gold Council、FRED、Yahoo Finance</p>
@@ -34,6 +35,7 @@
     <div class="nav-inner">
       <span class="nav-label">目录</span>
       <a href="#overview">最新概览</a>
+      <a href="#comex-gold">COMEX 金价</a>
       <a href="#etf-flows">ETF 资金流</a>
       <a href="#etf-holdings">ETF 持仓</a>
       <a href="#real-yield">美国实际利率</a>
@@ -73,6 +75,44 @@
           <p id="metric-outflow-value" class="metric-note">—</p>
         </article>
       </div>
+    </section>
+
+    <section id="comex-gold" class="page-section" aria-labelledby="comex-gold-title">
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <p class="section-kicker">COMEX GOLD</p>
+            <h2 id="comex-gold-title">COMEX 黄金期货价格（日频）</h2>
+            <p>追踪 Yahoo Finance 的连续黄金期货合约 GC=F 每日收盘价，作为网页的首张市场价格图。</p>
+          </div>
+          <div class="download-links" aria-label="COMEX 黄金期货数据下载">
+            <a href="data/comex_gold_futures.csv" download>下载 CSV</a>
+            <a href="data/comex_gold_futures.json" download>下载 JSON</a>
+          </div>
+        </div>
+
+        <div class="control-row range-controls">
+          <div class="date-range">
+            <label>开始日期 <input id="comex-gold-start-date" type="date"></label>
+            <span>至</span>
+            <label>结束日期 <input id="comex-gold-end-date" type="date"></label>
+          </div>
+          <div id="comex-gold-range-buttons" class="quick-ranges" role="group" aria-label="COMEX 金价快速选择时间范围">
+            <button type="button" data-years="1">近 1 年</button>
+            <button type="button" data-years="3">近 3 年</button>
+            <button type="button" data-years="5" class="active">近 5 年</button>
+            <button type="button" data-years="all">全部历史</button>
+          </div>
+        </div>
+
+        <div class="chart-status-row">
+          <p id="comex-gold-chart-status" role="status">正在载入 COMEX 金价数据…</p>
+          <span id="comex-gold-latest" class="date-badge">—</span>
+        </div>
+
+        <div id="comex-gold-chart" class="flow-chart" role="img" aria-label="COMEX 黄金期货日度收盘价走势曲线图"></div>
+        <p class="chart-note">单位为美元/金衡盎司（US$/oz），日频；使用 Yahoo Finance GC=F 的 Close 字段。空值占位被剔除，不做插值；CSV 同时保留开盘、最高、最低、收盘、复权收盘和成交量。</p>
+      </article>
     </section>
 
     <section id="etf-flows" class="page-section" aria-labelledby="flows-title">
@@ -274,12 +314,13 @@
         </div>
       </div>
       <div class="methodology-grid">
-        <p><strong>数据范围：</strong>世界黄金协会统计的全球实物黄金 ETF 及类似产品，按北美、欧洲、亚洲和其他地区汇总；页面同时展示资金流、持仓规模和金价，并加入美国 10 年期实际利率与美元指数。</p>
+        <p><strong>数据范围：</strong>页面展示 COMEX 连续黄金期货价格，以及世界黄金协会统计的全球实物黄金 ETF 资金流和持仓，并加入美国 10 年期实际利率与美元指数。</p>
         <p><strong>单位：</strong>资金流与持仓的美元口径保留原始金额，图表按十亿美元展示。资金流吨数表示持仓变化，持仓吨数表示期末持有量；金价单位为美元/金衡盎司。</p>
-        <p><strong>更新频率：</strong>网页工作日自动检查 World Gold Council、FRED 与 Yahoo Finance；实际利率和美元指数按日更新，周末及美国节假日通常无新观测。</p>
-        <p><strong>数据声明：</strong>数据可能因源站修订而变化。ETF 与金价来源为 World Gold Council、Bloomberg、公司披露及 ICE Benchmark Administration；实际利率来源为美联储 H.15，经 FRED 发布；美元指数来源为 Yahoo Finance。</p>
+        <p><strong>更新频率：</strong>网页工作日自动检查 World Gold Council、FRED 与 Yahoo Finance；COMEX 金价、实际利率和美元指数按日更新，周末及美国节假日通常无新观测。</p>
+        <p><strong>数据声明：</strong>数据可能因源站修订而变化。ETF 图内金价及 ETF 数据来自 World Gold Council；COMEX 连续黄金期货与美元指数来自 Yahoo Finance；实际利率来源为美联储 H.15，经 FRED 发布。</p>
       </div>
       <p class="source-line">原始数据页面：<a href="https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows" target="_blank" rel="noreferrer">Gold ETFs, holdings and flows</a></p>
+      <p class="source-line source-line-secondary">COMEX 黄金期货页面：<a href="https://finance.yahoo.com/quote/GC%3DF/history/" target="_blank" rel="noreferrer">Yahoo Finance GC=F</a></p>
       <p class="source-line source-line-secondary">实际利率页面：<a href="https://fred.stlouisfed.org/series/DFII10" target="_blank" rel="noreferrer">FRED DFII10</a></p>
       <p class="source-line source-line-secondary">美元指数页面：<a href="https://finance.yahoo.com/quote/DX-Y.NYB/history/" target="_blank" rel="noreferrer">Yahoo Finance DX-Y.NYB</a></p>
     </section>
