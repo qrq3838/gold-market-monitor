@@ -27,6 +27,9 @@ jobs:
       - name: Refresh World Gold Council data
         run: python scripts/update_data.py
 
+      - name: Refresh SAFE official gold-reserve data
+        run: python scripts/update_pboc_gold_reserves.py
+
       - name: Refresh FRED real-yield data
         run: python scripts/update_real_yield.py
 
@@ -39,12 +42,12 @@ jobs:
       - name: Commit updated data
         shell: bash
         run: |
-          if git diff --quiet -- data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv data/gold_price_by_frequency.csv data/gold_etf_holdings_by_region.json data/gold_etf_holdings_by_region.csv data/us_10y_real_yield.json data/us_10y_real_yield.csv data/comex_gold_futures.json data/comex_gold_futures.csv data/us_dollar_index.json data/us_dollar_index.csv; then
+          if git diff --quiet -- data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv data/gold_price_by_frequency.csv data/gold_etf_holdings_by_region.json data/gold_etf_holdings_by_region.csv data/pboc_gold_reserve_changes.json data/pboc_gold_reserve_changes.csv data/us_10y_real_yield.json data/us_10y_real_yield.csv data/comex_gold_futures.json data/comex_gold_futures.csv data/us_dollar_index.json data/us_dollar_index.csv; then
             echo "No source data change."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv data/gold_price_by_frequency.csv data/gold_etf_holdings_by_region.json data/gold_etf_holdings_by_region.csv data/us_10y_real_yield.json data/us_10y_real_yield.csv data/comex_gold_futures.json data/comex_gold_futures.csv data/us_dollar_index.json data/us_dollar_index.csv
+          git add data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv data/gold_price_by_frequency.csv data/gold_etf_holdings_by_region.json data/gold_etf_holdings_by_region.csv data/pboc_gold_reserve_changes.json data/pboc_gold_reserve_changes.csv data/us_10y_real_yield.json data/us_10y_real_yield.csv data/comex_gold_futures.json data/comex_gold_futures.csv data/us_dollar_index.json data/us_dollar_index.csv
           git commit -m "Update gold market data"
           git push
