@@ -14,10 +14,11 @@
     Monthly: "月度",
     Weekly: "周度"
   };
-  const GOLD_PRICE_LABEL = "金价";
+  const GOLD_PRICE_LABEL = "COMEX 金价";
 
   const state = {
     payload: null,
+    goldPriceByFrequency: {},
     unit: "tonnes",
     frequency: "Weekly",
     visibleRegions: new Set(),
@@ -147,10 +148,10 @@
     const priceButton = document.createElement("button");
     priceButton.type = "button";
     priceButton.setAttribute("aria-pressed", String(state.showGoldPrice));
-    priceButton.setAttribute("aria-label", `${state.showGoldPrice ? "隐藏" : "显示"}金价曲线`);
+    priceButton.setAttribute("aria-label", `${state.showGoldPrice ? "隐藏" : "显示"}${GOLD_PRICE_LABEL}曲线`);
     const priceLine = document.createElement("span");
     priceLine.className = "legend-line";
-    priceLine.style.background = state.payload.gold_price.color;
+    priceLine.style.background = window.GoldOverlay.COLOR;
     const priceLabel = document.createElement("span");
     priceLabel.textContent = GOLD_PRICE_LABEL;
     priceButton.append(priceLine, priceLabel);
@@ -191,7 +192,8 @@
     const regions = state.payload.regions.filter((region) => state.visibleRegions.has(region.name));
     const unitTitle = state.unit === "usd" ? "资金流（十亿美元）" : "需求变化（吨）";
     const selectedUnit = data[state.unit];
-    const goldPriceColor = state.payload.gold_price.color;
+    const goldPrices = state.goldPriceByFrequency[state.frequency];
+    const goldPriceColor = window.GoldOverlay.COLOR;
     const barSeries = regions.map((region) => ({
       name: REGION_LABELS[region.name],
       type: "bar",
@@ -206,7 +208,7 @@
       name: GOLD_PRICE_LABEL,
       type: "line",
       yAxisIndex: 1,
-      data: data.gold_price_usd_per_oz,
+      data: goldPrices,
       symbol: "none",
       showSymbol: false,
       connectNulls: false,
@@ -221,7 +223,7 @@
       animationDuration: 350,
       aria: {
         enabled: true,
-        description: `全球黄金ETF${FREQUENCY_LABELS[state.frequency]}${unitTitle}按地区柱状图，以及右轴金价曲线。`
+        description: `全球黄金ETF${FREQUENCY_LABELS[state.frequency]}${unitTitle}按地区柱状图，以及可选右轴COMEX金价曲线。`
       },
       color: regions.map((region) => region.color),
       grid: { left: window.innerWidth < 680 ? 48 : 72, right: window.innerWidth < 680 ? 56 : 78, top: 42, bottom: 92, containLabel: false },
@@ -238,14 +240,17 @@
             value: selectedUnit[region.name][index]
           }));
           const total = rows.reduce((sum, row) => sum + row.value, 0);
-          const goldPrice = data.gold_price_usd_per_oz[index];
+          const goldPrice = goldPrices[index];
           const formatValue = state.unit === "usd" ? (value) => formatUsd(value, true) : (value) => formatTonnes(value, true);
-          return [
+          const lines = [
             `<strong>${formatDate(data.dates[index])}</strong>`,
             ...rows.map((row) => `<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${row.region.color};margin-right:7px"></span>${REGION_LABELS[row.region.name]}：${formatValue(row.value)}`),
-            `<span style="display:inline-block;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.2);width:100%">合计：<strong>${formatValue(total)}</strong></span>`,
-            `<span style="display:inline-block;width:18px;height:3px;border-radius:2px;background:${goldPriceColor};margin-right:7px;vertical-align:middle"></span>金价：<strong>${formatGoldPrice(goldPrice)}</strong>`
-          ].join("<br>");
+            `<span style="display:inline-block;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.2);width:100%">合计：<strong>${formatValue(total)}</strong></span>`
+          ];
+          if (state.showGoldPrice && goldPrice !== null) {
+            lines.push(`<span style="display:inline-block;width:18px;height:3px;border-radius:2px;background:${goldPriceColor};margin-right:7px;vertical-align:middle"></span>${GOLD_PRICE_LABEL}：<strong>${formatGoldPrice(goldPrice)}</strong>`);
+          }
+          return lines.join("<br>");
         }
       },
       xAxis: {
@@ -273,7 +278,7 @@
           type: "value",
           show: state.showGoldPrice,
           min: 0,
-          name: "金价（US$/oz）",
+          name: "COMEX 金价（US$/oz）",
           nameTextStyle: { color: "#8f6c27", align: "right", padding: [0, -4, 8, 0] },
           axisLine: { show: true, lineStyle: { color: goldPriceColor } },
           axisTick: { show: false },
@@ -381,9 +386,19 @@
   async function init() {
     try {
       if (!window.echarts) throw new Error("图表组件未能载入，请检查网络连接。");
-      const response = await fetch(DATA_URL, { cache: "no-store" });
+      if (!window.GoldOverlay) throw new Error("COMEX 金价叠加组件未能载入");
+      const [response, goldPayload] = await Promise.all([
+        fetch(DATA_URL, { cache: "no-store" }),
+        window.GoldOverlay.load()
+      ]);
       if (!response.ok) throw new Error(`数据文件载入失败（${response.status}）`);
       state.payload = await response.json();
+      state.goldPriceByFrequency = Object.fromEntries(
+        Object.entries(state.payload.frequencies).map(([frequency, data]) => [
+          frequency,
+          window.GoldOverlay.alignToDates(data.dates, goldPayload)
+        ])
+      );
       state.visibleRegions = new Set(state.payload.regions.map((region) => region.name));
       state.chart = window.echarts.init(els.chart, null, { renderer: "canvas" });
       const currentYear = new Date().getFullYear();
