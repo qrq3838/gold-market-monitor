@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="黄金市场监测：COMEX 黄金期货、中国人民银行月度购金、全球黄金 ETF、美国实际利率及美元指数。">
-  <title>黄金市场监测｜COMEX、央行购金、ETF 与宏观指标</title>
+  <meta name="description" content="黄金市场监测：COMEX 黄金期货、全球央行黄金储备、中国人民银行月度购金、全球黄金 ETF、美国实际利率及美元指数。">
+  <title>黄金市场监测｜COMEX、央行储备、ETF 与宏观指标</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="assets/styles.css">
@@ -12,6 +12,7 @@
   <script defer src="assets/gold-overlay.js"></script>
   <script defer src="assets/comex-gold.js"></script>
   <script defer src="assets/pboc-gold.js"></script>
+  <script defer src="assets/central-bank-reserves.js"></script>
   <script defer src="assets/app.js"></script>
   <script defer src="assets/holdings.js"></script>
   <script defer src="assets/real-yield.js"></script>
@@ -23,7 +24,7 @@
       <div>
         <p class="eyebrow">GOLD MARKET MONITOR</p>
         <h1>黄金市场监测</h1>
-        <p class="header-subtitle">COMEX 金价、央行购金、全球黄金 ETF 与宏观指标</p>
+        <p class="header-subtitle">COMEX 金价、全球央行黄金储备、ETF 与宏观指标</p>
       </div>
       <div class="header-meta">
         <p>数据来源：SAFE、World Gold Council、FRED、Yahoo Finance</p>
@@ -39,6 +40,7 @@
       <a href="#overview">最新概览</a>
       <a href="#comex-gold">COMEX 金价</a>
       <a href="#pboc-gold">央行购金</a>
+      <a href="#central-bank-reserves">全球央行储备</a>
       <a href="#etf-flows">ETF 资金流</a>
       <a href="#etf-holdings">ETF 持仓</a>
       <a href="#real-yield">美国实际利率</a>
@@ -156,6 +158,58 @@
 
         <div id="pboc-gold-chart" class="flow-chart" role="img" aria-label="中国人民银行月度增持黄金吨数柱状图"></div>
         <p class="chart-note">左轴为相邻月末黄金储备存量之差（吨）；0 表示持有量未变，若未来出现负值则表示减持。2016 年 1 月仅作为实物存量基准，首笔可计算变化为 2016 年 2 月。可选金色曲线使用右轴，表示当月月末或此前最近交易日的 COMEX 黄金期货收盘价（US$/oz）。</p>
+      </article>
+    </section>
+
+    <section id="central-bank-reserves" class="page-section" aria-labelledby="central-bank-reserves-title">
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <p class="section-kicker">OFFICIAL GOLD RESERVES</p>
+            <h2 id="central-bank-reserves-title">全球央行黄金储备（按地区）</h2>
+            <p>将 World Gold Council 的季度官方黄金持有量按 11 个地理地区汇总；堆叠柱总高度即全球地理经济体合计。</p>
+          </div>
+          <div class="download-links" aria-label="全球央行黄金储备数据下载">
+            <a href="data/central_bank_gold_reserves_by_region.csv" download>下载 CSV</a>
+            <a href="data/comex_gold_futures.csv" download>下载 COMEX 金价</a>
+            <a href="data/central_bank_gold_reserves_by_region.json" download>下载 JSON</a>
+          </div>
+        </div>
+
+        <div class="control-row control-row-primary">
+          <div>
+            <span class="control-label">美国口径</span>
+            <div id="central-bank-us-controls" class="segmented" role="group" aria-label="是否计入美国黄金储备">
+              <button type="button" data-include-us="true" class="active" aria-pressed="true">计入美国</button>
+              <button type="button" data-include-us="false" aria-pressed="false">不计入美国</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-row range-controls">
+          <div class="date-range">
+            <label>开始季度 <input id="central-bank-start-date" type="date"></label>
+            <span>至</span>
+            <label>结束季度 <input id="central-bank-end-date" type="date"></label>
+          </div>
+          <div id="central-bank-range-buttons" class="quick-ranges" role="group" aria-label="全球央行储备快速选择时间范围">
+            <button type="button" data-years="5">近 5 年</button>
+            <button type="button" data-years="10">近 10 年</button>
+            <button type="button" data-years="20">近 20 年</button>
+            <button type="button" data-years="all" class="active">全部历史</button>
+          </div>
+        </div>
+
+        <div class="chart-status-row central-bank-status-row">
+          <p id="central-bank-chart-status" role="status">正在载入全球央行储备数据…</p>
+          <div class="chart-status-actions">
+            <span id="central-bank-latest" class="date-badge">—</span>
+            <div id="central-bank-region-legend" class="region-legend" aria-label="央行储备地区与金价显示控制"></div>
+          </div>
+        </div>
+
+        <div id="central-bank-chart" class="flow-chart" role="img" aria-label="全球官方黄金储备按地区季度堆叠柱状图"></div>
+        <p class="chart-note">左轴为季度末官方黄金持有量（吨），11 个地区相加为地理经济体全球合计；“不计入美国”只从 North America 和全球合计中扣除美国。源数据标记为 AWAITED 时沿用该经济体此前最近一期已公布库存，不在其首次公布前回填。可选金色曲线使用右轴，取季度末当天或此前最近交易日的 COMEX GC=F 收盘价。</p>
       </article>
     </section>
 
@@ -365,12 +419,13 @@
         </div>
       </div>
       <div class="methodology-grid">
-        <p><strong>数据范围：</strong>页面展示 COMEX 连续黄金期货价格、中国人民银行月度黄金储备增持量、全球实物黄金 ETF 资金流与持仓，以及美国 10 年期实际利率和美元指数。</p>
-        <p><strong>单位：</strong>央行购金按 SAFE 月末实物储备的万盎司差分计算，并按 1 金衡盎司 = 31.1034768 克换算为吨。ETF 美元口径按十亿美元展示；所有指标图的可选右轴金价统一为 COMEX GC=F 收盘价。</p>
-        <p><strong>更新频率：</strong>网页工作日自动检查 SAFE、World Gold Council、FRED 与 Yahoo Finance；SAFE 月度官方储备资产通常于次月发布，日频市场数据在交易日更新。</p>
-        <p><strong>数据声明：</strong>数据可能因源站修订而变化。央行黄金储备来自 SAFE 官方储备资产；ETF 数据来自 World Gold Council；COMEX 金价和美元指数来自 Yahoo Finance；实际利率来源为美联储 H.15，经 FRED 发布。</p>
+        <p><strong>数据范围：</strong>页面展示 COMEX 连续黄金期货价格、全球央行季度黄金储备、中国人民银行月度增持量、全球实物黄金 ETF 资金流与持仓，以及美国 10 年期实际利率和美元指数。</p>
+        <p><strong>单位：</strong>全球央行储备为季度末吨数；中国央行购金按 SAFE 月末实物储备差分换算为吨。ETF 美元口径按十亿美元展示；所有指标图的可选右轴金价统一为 COMEX GC=F 收盘价。</p>
+        <p><strong>更新频率：</strong>网页工作日自动检查 SAFE、World Gold Council、FRED 与 Yahoo Finance；全球央行储备随 WGC 季度数据更新，SAFE 通常于次月发布，日频市场数据在交易日更新。</p>
+        <p><strong>数据声明：</strong>数据可能因源站修订而变化。全球央行与 ETF 数据来自 World Gold Council，中国央行月度储备来自 SAFE；COMEX 金价和美元指数来自 Yahoo Finance；实际利率来源为美联储 H.15，经 FRED 发布。</p>
       </div>
       <p class="source-line">原始数据页面：<a href="https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows" target="_blank" rel="noreferrer">Gold ETFs, holdings and flows</a></p>
+      <p class="source-line source-line-secondary">全球央行储备页面：<a href="https://www.gold.org/goldhub/data/gold-reserves-by-country" target="_blank" rel="noreferrer">Gold reserves by country</a></p>
       <p class="source-line source-line-secondary">COMEX 黄金期货页面：<a href="https://finance.yahoo.com/quote/GC%3DF/history/" target="_blank" rel="noreferrer">Yahoo Finance GC=F</a></p>
       <p class="source-line source-line-secondary">实际利率页面：<a href="https://fred.stlouisfed.org/series/DFII10" target="_blank" rel="noreferrer">FRED DFII10</a></p>
       <p class="source-line source-line-secondary">美元指数页面：<a href="https://finance.yahoo.com/quote/DX-Y.NYB/history/" target="_blank" rel="noreferrer">Yahoo Finance DX-Y.NYB</a></p>
