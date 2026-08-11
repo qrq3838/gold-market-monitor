@@ -88,6 +88,25 @@ def normalize(source: dict[str, Any]) -> tuple[list[dict[str, float | int | str]
         raise ValueError("Yahoo response has no exchange timezone")
     exchange_timezone = ZoneInfo(exchange_timezone_name)
     regular_market_time = meta.get("regularMarketTime")
+    current_session_date = None
+    current_trading_period = meta.get("currentTradingPeriod")
+    regular_period = (
+        current_trading_period.get("regular")
+        if isinstance(current_trading_period, dict)
+        else None
+    )
+    if isinstance(regular_period, dict):
+        session_start = regular_period.get("start")
+        session_end = regular_period.get("end")
+        now = time.time()
+        if (
+            isinstance(session_start, (int, float))
+            and isinstance(session_end, (int, float))
+            and session_start <= now < session_end
+        ):
+            current_session_date = datetime.fromtimestamp(
+                float(session_start), tz=exchange_timezone
+            ).date()
 
     timestamps = result.get("timestamp")
     quote_blocks = result.get("indicators", {}).get("quote")
@@ -113,6 +132,11 @@ def normalize(source: dict[str, Any]) -> tuple[list[dict[str, float | int | str]
         if values["close"] is None:
             continue
         exchange_datetime = datetime.fromtimestamp(float(timestamp), tz=exchange_timezone)
+        if current_session_date is not None and exchange_datetime.date() == current_session_date:
+            # Yahoo can populate the exchange-midnight row before the current
+            # daily session has ended. Omit the whole open session, not just the
+            # separate live quote appended at regularMarketTime.
+            continue
         if (
             isinstance(regular_market_time, (int, float))
             and int(timestamp) == int(regular_market_time)
@@ -207,8 +231,8 @@ def main() -> int:
         "units": "U.S. dollars per troy ounce",
         "series": "Close",
         "missing_value_policy": (
-            "Rows with null close and the live in-progress Yahoo daily quote are omitted; "
-            "no interpolation"
+            "Rows with null close, the current open exchange session, and the live "
+            "in-progress Yahoo quote are omitted; no interpolation"
         ),
         "as_of_date": dates[-1],
         "downloaded_at_utc": downloaded_at,
