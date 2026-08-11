@@ -15,6 +15,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 
 SYMBOL = "GC=F"
@@ -82,6 +83,11 @@ def normalize(source: dict[str, Any]) -> tuple[list[dict[str, float | int | str]
     meta = result.get("meta")
     if not isinstance(meta, dict) or meta.get("symbol") != SYMBOL:
         raise ValueError(f"Unexpected Yahoo symbol metadata: {meta}")
+    exchange_timezone_name = meta.get("exchangeTimezoneName")
+    if not isinstance(exchange_timezone_name, str) or not exchange_timezone_name:
+        raise ValueError("Yahoo response has no exchange timezone")
+    exchange_timezone = ZoneInfo(exchange_timezone_name)
+    regular_market_time = meta.get("regularMarketTime")
 
     timestamps = result.get("timestamp")
     quote_blocks = result.get("indicators", {}).get("quote")
@@ -106,9 +112,19 @@ def normalize(source: dict[str, Any]) -> tuple[list[dict[str, float | int | str]
         values = {name: series[index] for name, series in fields.items()}
         if values["close"] is None:
             continue
+        exchange_datetime = datetime.fromtimestamp(float(timestamp), tz=exchange_timezone)
+        if (
+            isinstance(regular_market_time, (int, float))
+            and int(timestamp) == int(regular_market_time)
+            and exchange_datetime.time().replace(tzinfo=None) != datetime.min.time()
+        ):
+            # Yahoo appends the live quote as the last "1d" row while the
+            # exchange session is still open. Its timestamp follows the clock
+            # instead of exchange midnight, so it is not a completed daily bar.
+            continue
         if any(values[name] is None for name in ("open", "high", "low", "adjusted_close")):
             raise ValueError(f"Incomplete Yahoo OHLC row at timestamp {timestamp}")
-        day = datetime.fromtimestamp(float(timestamp), tz=timezone.utc).date().isoformat()
+        day = exchange_datetime.date().isoformat()
         by_date[day] = {
             "date": day,
             **{
@@ -190,7 +206,10 @@ def main() -> int:
         "frequency": "Daily",
         "units": "U.S. dollars per troy ounce",
         "series": "Close",
-        "missing_value_policy": "Rows with null close are omitted; no interpolation",
+        "missing_value_policy": (
+            "Rows with null close and the live in-progress Yahoo daily quote are omitted; "
+            "no interpolation"
+        ),
         "as_of_date": dates[-1],
         "downloaded_at_utc": downloaded_at,
         "observation_count": len(dates),
