@@ -112,11 +112,14 @@
 
         <div class="chart-status-row">
           <p id="comex-gold-chart-status" role="status">正在载入 COMEX 金价数据…</p>
-          <span id="comex-gold-latest" class="date-badge">—</span>
+          <div class="chart-status-actions">
+            <span id="comex-gold-latest" class="date-badge">—</span>
+            <div id="comex-gold-ma-legend" class="region-legend" aria-label="COMEX 金价移动平均线显示控制"></div>
+          </div>
         </div>
 
-        <div id="comex-gold-chart" class="flow-chart" role="img" aria-label="COMEX 黄金期货日度收盘价走势曲线图"></div>
-        <p class="chart-note">单位为美元/金衡盎司（US$/oz），日频；使用 Yahoo Finance GC=F 的 Close 字段。空值占位被剔除，不做插值；CSV 同时保留开盘、最高、最低、收盘、复权收盘和成交量。</p>
+        <div id="comex-gold-chart" class="flow-chart" role="img" aria-label="COMEX 黄金期货日度收盘价及可选移动平均线走势图"></div>
+        <p class="chart-note">单位为美元/金衡盎司（US$/oz），日频；使用 Yahoo Finance GC=F 的 Close 字段。可选 MA5、MA20、MA60、MA120 分别为最近 5、20、60、120 个有效交易日收盘价的简单算术平均，历史不足相应窗口时不绘制。空值占位被剔除，不做插值；CSV 同时保留开盘、最高、最低、收盘、复权收盘和成交量。</p>
       </article>
     </section>
 

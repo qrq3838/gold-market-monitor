@@ -10,7 +10,7 @@
 
 | 模块 | 页面内容 | 指标口径 | 网站数据文件 | 原始数据源 | 更新频率 |
 |---|---|---|---|---|---|
-| COMEX 黄金期货价格 | 网页首张图，展示连续黄金期货日度收盘走势 | Yahoo Finance `GC=F`；单位：US$/oz；日频；图表使用 Close | `data/comex_gold_futures.json`、`data/comex_gold_futures.csv` | Yahoo Finance，交易所元数据为 COMEX | 工作日每日检查并更新 |
+| COMEX 黄金期货价格 | 网页首张图，展示连续黄金期货日度收盘走势，并提供 MA5、MA20、MA60、MA120 独立开关 | Yahoo Finance `GC=F`；单位：US$/oz；日频；图表使用 Close；均线为最近 N 个有效交易日 Close 的简单算术平均 | `data/comex_gold_futures.json`、`data/comex_gold_futures.csv` | Yahoo Finance，交易所元数据为 COMEX | 工作日每日检查并更新 |
 | 中国人民银行月度增持黄金 | SAFE 月末黄金储备实物存量的月度差分柱状图，并叠加可开关的 COMEX 金价右轴 | 储备：万盎司；月度增持：相邻月差分并按 1 金衡盎司 = 31.1034768 克换算为吨；金价：GC=F Close | `data/pboc_gold_reserve_changes.json`、`data/pboc_gold_reserve_changes.csv`、`data/comex_gold_futures.json` | 国家外汇管理局“官方储备资产”；金价：Yahoo Finance `GC=F` | 工作日检查，SAFE 通常于次月更新 |
 | 全球央行黄金储备（按地区） | WGC 11 个地区季度末官方黄金持有量堆叠柱状图，可切换计入/不计入美国，并叠加可开关的 COMEX 金价右轴 | 123 个具有 WGC 地区分类的国家和地区；单位：吨；季度；AWAITED 沿用该经济体此前最近一期库存；不计入美国时只从 North America 和全球合计扣除 USA | `data/central_bank_gold_reserves_by_region.json`、`data/central_bank_gold_reserves_by_region.csv`、`data/comex_gold_futures.json` | WGC `getFilters` + `getPage`（`QTD_FULL`、`gold_reserves_tns`）；金价：Yahoo Finance `GC=F` | 工作日检查，WGC 季度数据发布时更新 |
 | Gold ETF flows by region | 北美、欧洲、亚洲、其他地区的资金流柱状图，并叠加可开关的 COMEX 金价右轴 | 资金流：美元或吨；金价：GC=F Close，US$/oz；年、季、月、周四种频率 | `data/gold_etf_flows_by_region.json`、`data/gold_etf_flows_by_region.csv`、`data/comex_gold_futures.json` | ETF：WGC `flows-chart2`；金价：Yahoo Finance `GC=F` | ETF 工作日检查；COMEX 金价每日检查 |
@@ -56,6 +56,7 @@ GitHub Actions 工作流位于 `.github/workflows/update-data.yml`，计划时�
 4. JSON 为网页使用的紧凑日期/收盘值序列；CSV 原样保留 Date、Open、High、Low、Close、Adjusted Close 和 Volume。
 5. 当前有效覆盖范围为 2000-08-30 至 2026-08-10，共 6,509 条日度观测，最新收盘价为 US$4,361.80/oz。
 6. Yahoo 的连续合约早期 OHLC 与结算 Close 存在换月口径差异：430 日的 Close 不在同日 High/Low 区间内，且 2009-11-23 的源站 High 低于 Low。网页只使用 Close；CSV 保留源站原值，不擅自修正。
+7. 网页端基于完整 Close 历史计算 MA5、MA20、MA60 和 MA120 简单移动平均线；窗口不足时返回空值，不缩短分母。四条均线默认关闭，用户可独立选择显示，不改变原始 JSON/CSV 数据。
 
 ### 2. ETF 资金流、持仓与金价
 
