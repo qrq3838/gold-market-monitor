@@ -3,13 +3,27 @@
 
   const DATA_URL = "data/comex_gold_futures.json";
   const LINE_COLOR = "#d4a63f";
-  const state = { payload: null, startIndex: 0, endIndex: 0, chart: null };
+  const MA_CONFIG = [
+    { period: 5, name: "MA5", color: "#2f6b8a", type: "dashed", width: 1.6 },
+    { period: 20, name: "MA20", color: "#c66b2b", type: "solid", width: 1.7 },
+    { period: 60, name: "MA60", color: "#7a7b3f", type: "dotted", width: 2 },
+    { period: 120, name: "MA120", color: "#b35c7a", type: "dashed", width: 2.2 }
+  ];
+  const state = {
+    payload: null,
+    startIndex: 0,
+    endIndex: 0,
+    chart: null,
+    movingAverages: new Map(),
+    visibleMAs: new Set()
+  };
   const els = {
     rangeButtons: document.getElementById("comex-gold-range-buttons"),
     startDate: document.getElementById("comex-gold-start-date"),
     endDate: document.getElementById("comex-gold-end-date"),
     status: document.getElementById("comex-gold-chart-status"),
     latest: document.getElementById("comex-gold-latest"),
+    maLegend: document.getElementById("comex-gold-ma-legend"),
     chart: document.getElementById("comex-gold-chart"),
     error: document.getElementById("error-banner")
   };
@@ -49,13 +63,58 @@
     els.status.textContent = `${formatDate(dates[state.startIndex])} 至 ${formatDate(dates[state.endIndex])}，${state.endIndex - state.startIndex + 1} 个有效交易日`;
   }
 
+  function calculateMovingAverage(values, period) {
+    const result = Array(values.length).fill(null);
+    let sum = 0;
+    for (let index = 0; index < values.length; index += 1) {
+      sum += values[index];
+      if (index >= period) sum -= values[index - period];
+      if (index >= period - 1) result[index] = Number((sum / period).toFixed(6));
+    }
+    return result;
+  }
+
+  function buildMovingAverageLegend() {
+    els.maLegend.replaceChildren();
+    MA_CONFIG.forEach((config) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.period = String(config.period);
+      const isVisible = state.visibleMAs.has(config.period);
+      button.setAttribute("aria-pressed", String(isVisible));
+      button.setAttribute("aria-label", `${isVisible ? "隐藏" : "显示"} ${config.name} 移动平均线`);
+      const swatch = document.createElement("span");
+      swatch.className = "legend-line";
+      swatch.style.background = config.type === "solid"
+        ? config.color
+        : `repeating-linear-gradient(to right, ${config.color} 0 5px, transparent 5px ${config.type === "dotted" ? "8px" : "10px"})`;
+      button.append(swatch, document.createTextNode(config.name));
+      els.maLegend.append(button);
+    });
+  }
+
   function renderChart() {
     const { dates, values } = state.payload;
+    const movingAverageSeries = MA_CONFIG
+      .filter((config) => state.visibleMAs.has(config.period))
+      .map((config) => ({
+        name: config.name,
+        type: "line",
+        data: state.movingAverages.get(config.period),
+        symbol: "none",
+        showSymbol: false,
+        connectNulls: false,
+        sampling: "lttb",
+        lineStyle: { color: config.color, width: config.width, type: config.type },
+        itemStyle: { color: config.color },
+        emphasis: { focus: "series", lineStyle: { width: config.width + 0.8 } },
+        z: 4
+      }));
     state.chart.setOption({
       animationDuration: 350,
       aria: {
         enabled: true,
-        description: "COMEX 黄金期货日度收盘价走势曲线，单位为美元每金衡盎司。"
+        description: "COMEX 黄金期货日度收盘价及用户选择的移动平均线走势，单位为美元每金衡盎司。"
       },
       grid: {
         left: window.innerWidth < 680 ? 58 : 80,
@@ -71,7 +130,10 @@
         textStyle: { color: "#fff" },
         formatter(params) {
           const index = params[0]?.dataIndex ?? 0;
-          return `<strong>${formatDate(dates[index])}</strong><br><span style="display:inline-block;width:18px;height:3px;border-radius:2px;background:${LINE_COLOR};margin-right:7px;vertical-align:middle"></span>COMEX 收盘：<strong>US$${priceFormatter.format(values[index])}/oz</strong>`;
+          const rows = params
+            .filter((item) => item.value != null)
+            .map((item) => `${item.marker}${item.seriesName}：<strong>US$${priceFormatter.format(item.value)}/oz</strong>`);
+          return `<strong>${formatDate(dates[index])}</strong><br>${rows.join("<br>")}`;
         }
       },
       xAxis: {
@@ -122,17 +184,22 @@
           selectedDataBackground: { lineStyle: { color: LINE_COLOR }, areaStyle: { color: "#d9bd7c" } }
         }
       ],
-      series: [{
-        name: "COMEX 黄金期货收盘价",
-        type: "line",
-        data: values,
-        symbol: "none",
-        showSymbol: false,
-        sampling: "lttb",
-        lineStyle: { color: LINE_COLOR, width: 2.5 },
-        itemStyle: { color: LINE_COLOR },
-        areaStyle: { color: LINE_COLOR, opacity: 0.08 }
-      }]
+      series: [
+        {
+          name: "COMEX 收盘",
+          type: "line",
+          data: values,
+          symbol: "none",
+          showSymbol: false,
+          sampling: "lttb",
+          lineStyle: { color: LINE_COLOR, width: 2.5 },
+          itemStyle: { color: LINE_COLOR },
+          areaStyle: { color: LINE_COLOR, opacity: 0.08 },
+          emphasis: { focus: "series" },
+          z: 3
+        },
+        ...movingAverageSeries
+      ]
     }, true);
     updateRangeLabels();
   }
@@ -168,6 +235,15 @@
       els.rangeButtons.querySelectorAll("button").forEach((button) => button.classList.remove("active"));
       renderChart();
     });
+    els.maLegend.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-period]");
+      if (!button) return;
+      const period = Number(button.dataset.period);
+      if (state.visibleMAs.has(period)) state.visibleMAs.delete(period);
+      else state.visibleMAs.add(period);
+      buildMovingAverageLegend();
+      renderChart();
+    });
     state.chart.on("datazoom", () => {
       const zoom = state.chart.getOption().dataZoom?.[0];
       if (!zoom) return;
@@ -188,8 +264,15 @@
       if (!Array.isArray(state.payload.dates) || state.payload.dates.length !== state.payload.values?.length) {
         throw new Error("COMEX 金价数据格式不完整");
       }
+      if (state.payload.values.some((value) => !Number.isFinite(value))) {
+        throw new Error("COMEX 金价包含无法计算移动平均线的数值");
+      }
+      MA_CONFIG.forEach((config) => {
+        state.movingAverages.set(config.period, calculateMovingAverage(state.payload.values, config.period));
+      });
       state.chart = window.echarts.init(els.chart, null, { renderer: "canvas" });
       els.latest.textContent = `${formatDate(state.payload.as_of_date)} · US$${priceFormatter.format(state.payload.values.at(-1))}/oz`;
+      buildMovingAverageLegend();
       bindControls();
       setRange("5");
     } catch (error) {
