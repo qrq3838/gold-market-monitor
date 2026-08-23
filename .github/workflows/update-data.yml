@@ -3,7 +3,8 @@ name: Update gold market data
 on:
   workflow_dispatch:
   schedule:
-    - cron: "15 7 * * 1-5"
+    # Every day at 22:40 Asia/Shanghai (14:40 UTC).
+    - cron: "40 14 * * *"
 
 permissions:
   contents: write
