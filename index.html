@@ -11,6 +11,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
   <script defer src="assets/gold-overlay.js"></script>
   <script defer src="assets/comex-gold.js"></script>
+  <script defer src="assets/research-modules.js"></script>
   <script defer src="assets/pboc-gold.js"></script>
   <script defer src="assets/central-bank-reserves.js"></script>
   <script defer src="assets/app.js"></script>
@@ -27,7 +28,7 @@
         <p class="header-subtitle">COMEX 金价、全球央行黄金储备、ETF 与宏观指标</p>
       </div>
       <div class="header-meta">
-        <p>数据来源：SAFE、World Gold Council、FRED、Yahoo Finance</p>
+        <p>数据来源：SAFE、WGC、FRED、CFTC、Yahoo Finance</p>
         <p>ETF 数据更新至 <strong id="header-date">载入中</strong></p>
         <p class="disclaimer">仅供研究交流，不构成任何投资建议。</p>
       </div>
@@ -39,6 +40,9 @@
       <span class="nav-label">目录</span>
       <a href="#overview">最新概览</a>
       <a href="#comex-gold">COMEX 金价</a>
+      <a href="#cftc-positions">CFTC 仓位</a>
+      <a href="#yield-decomposition">利率分解</a>
+      <a href="#gold-risk">回撤与波动</a>
       <a href="#pboc-gold">央行购金</a>
       <a href="#central-bank-reserves">全球央行储备</a>
       <a href="#etf-flows">ETF 资金流</a>
@@ -120,6 +124,102 @@
 
         <div id="comex-gold-chart" class="flow-chart" role="img" aria-label="COMEX 黄金期货日度收盘价及可选移动平均线走势图"></div>
         <p class="chart-note">单位为美元/金衡盎司（US$/oz），日频；使用 Yahoo Finance GC=F 的 Close 字段。可选 MA5、MA20、MA60、MA120 分别为最近 5、20、60、120 个有效交易日收盘价的简单算术平均，历史不足相应窗口时不绘制。空值占位被剔除，不做插值；CSV 同时保留开盘、最高、最低、收盘、复权收盘和成交量。</p>
+      </article>
+    </section>
+
+
+    <section id="cftc-positions" class="page-section" aria-labelledby="cftc-positions-title">
+      <article class="chart-card research-card">
+        <div class="chart-heading"><div>
+          <p class="section-kicker">POSITIONING</p>
+          <h2 id="cftc-positions-title">CFTC 黄金管理基金仓位</h2><p>观察资金拥挤程度与多空调整：COMEX 黄金期货、Managed Money、Futures Only。</p>
+        </div><div class="download-links" aria-label="CFTC 黄金管理基金仓位数据下载">
+          <a href="data/cftc_gold_positions.csv" download>下载 CSV</a>
+          <a href="data/cftc_gold_positions.json" download>下载 JSON</a>
+        </div></div>
+        <div class="control-row range-controls">
+          <div class="date-range">
+            <label>开始日期 <input id="cftc-positions-start-date" type="date"></label><span>至</span>
+            <label>结束日期 <input id="cftc-positions-end-date" type="date"></label>
+          </div>
+          <div id="cftc-positions-range-buttons" class="quick-ranges" role="group" aria-label="CFTC 黄金管理基金仓位快速选择时间范围">
+            <button type="button" data-years="1">近 1 年</button>
+            <button type="button" data-years="3">近 3 年</button>
+            <button type="button" data-years="5" class="active">近 5 年</button>
+            <button type="button" data-years="all">全部历史</button>
+          </div>
+        </div>
+        <div class="chart-status-row"><p id="cftc-positions-status" role="status">正在载入数据…</p>
+          <span id="cftc-positions-latest" class="date-badge">—</span></div>
+        <div id="cftc-positions-legend" class="region-legend research-legend" aria-label="CFTC 黄金管理基金仓位曲线显示控制"></div>
+        <div id="cftc-positions-summary" class="research-summary" aria-live="polite"></div>
+        <div id="cftc-positions-chart" class="research-chart" role="img" aria-label="CFTC 黄金管理基金仓位双面板走势图"></div>
+        <p class="chart-note">净多头 = 管理基金多头 − 空头，净多占比 = 净多头 ÷ 市场总持仓；156 期分位表示该占比在最近 156 份报告中的相对位置（含当期）。周变化为相邻 7 天报告之差，遇非 7 天间隔留空。横轴为持仓日期，通常周二；报告通常于周五美国东部时间 15:30 发布。期权与套利仓位不计入净多头。 可选金色曲线为右轴 COMEX 收盘价（US$/oz），按当日或此前最近有效交易日对齐。</p>
+        <p class="source-line research-source">数据源：<a href="https://www.cftc.gov/MarketReports/CommitmentsofTraders/HistoricalCompressed/index.htm" target="_blank" rel="noreferrer">CFTC 历史持仓报告</a></p>
+      </article>
+    </section>
+
+
+    <section id="yield-decomposition" class="page-section" aria-labelledby="yield-decomposition-title">
+      <article class="chart-card research-card">
+        <div class="chart-heading"><div>
+          <p class="section-kicker">REAL RATE DRIVERS</p>
+          <h2 id="yield-decomposition-title">美国 10 年期实际利率分解</h2><p>名义利率 = 实际利率 + 盈亏平衡通胀率；同时观察近 20 个有效观测日的变化来源。</p>
+        </div><div class="download-links" aria-label="美国 10 年期实际利率分解数据下载">
+          <a href="data/us_yield_decomposition.csv" download>下载 CSV</a>
+          <a href="data/us_yield_decomposition.json" download>下载 JSON</a>
+        </div></div>
+        <div class="control-row range-controls">
+          <div class="date-range">
+            <label>开始日期 <input id="yield-decomposition-start-date" type="date"></label><span>至</span>
+            <label>结束日期 <input id="yield-decomposition-end-date" type="date"></label>
+          </div>
+          <div id="yield-decomposition-range-buttons" class="quick-ranges" role="group" aria-label="美国 10 年期实际利率分解快速选择时间范围">
+            <button type="button" data-years="1">近 1 年</button>
+            <button type="button" data-years="3">近 3 年</button>
+            <button type="button" data-years="5" class="active">近 5 年</button>
+            <button type="button" data-years="all">全部历史</button>
+          </div>
+        </div>
+        <div class="chart-status-row"><p id="yield-decomposition-status" role="status">正在载入数据…</p>
+          <span id="yield-decomposition-latest" class="date-badge">—</span></div>
+        <div id="yield-decomposition-legend" class="region-legend research-legend" aria-label="美国 10 年期实际利率分解曲线显示控制"></div>
+        <div id="yield-decomposition-summary" class="research-summary" aria-live="polite"></div>
+        <div id="yield-decomposition-chart" class="research-chart" role="img" aria-label="美国 10 年期实际利率分解双面板走势图"></div>
+        <p class="chart-note">采用 FRED DGS10、DFII10 与 T10YIE 共同有效日期，无前向填充。盈亏平衡通胀率按名义利率减实际利率计算，并与官方 T10YIE 核对；它包含通胀风险与流动性溢价。下图展示 20 个共同有效观测日的变动，1 bp = 0.01 个百分点。历史不足窗口时留空。 可选金色曲线为右轴 COMEX 收盘价（US$/oz），按当日或此前最近有效交易日对齐。</p>
+        <p class="source-line research-source">数据源：<a href="https://fred.stlouisfed.org/series/DGS10" target="_blank" rel="noreferrer">FRED DGS10</a> · <a href="https://fred.stlouisfed.org/series/DFII10" target="_blank" rel="noreferrer">DFII10</a> · <a href="https://fred.stlouisfed.org/series/T10YIE" target="_blank" rel="noreferrer">T10YIE</a></p>
+      </article>
+    </section>
+
+
+    <section id="gold-risk" class="page-section" aria-labelledby="gold-risk-title">
+      <article class="chart-card research-card">
+        <div class="chart-heading"><div>
+          <p class="section-kicker">DRAWDOWN & VOLATILITY</p>
+          <h2 id="gold-risk-title">COMEX 黄金回撤与波动率</h2><p>用相对近一年高点的跌幅和短期波动率，观察价格风险及波动状态。</p>
+        </div><div class="download-links" aria-label="COMEX 黄金回撤与波动率数据下载">
+          <a href="data/comex_gold_risk.csv" download>下载 CSV</a>
+          <a href="data/comex_gold_risk.json" download>下载 JSON</a>
+        </div></div>
+        <div class="control-row range-controls">
+          <div class="date-range">
+            <label>开始日期 <input id="gold-risk-start-date" type="date"></label><span>至</span>
+            <label>结束日期 <input id="gold-risk-end-date" type="date"></label>
+          </div>
+          <div id="gold-risk-range-buttons" class="quick-ranges" role="group" aria-label="COMEX 黄金回撤与波动率快速选择时间范围">
+            <button type="button" data-years="1">近 1 年</button>
+            <button type="button" data-years="3">近 3 年</button>
+            <button type="button" data-years="5" class="active">近 5 年</button>
+            <button type="button" data-years="all">全部历史</button>
+          </div>
+        </div>
+        <div class="chart-status-row"><p id="gold-risk-status" role="status">正在载入数据…</p>
+          <span id="gold-risk-latest" class="date-badge">—</span></div>
+        <div id="gold-risk-legend" class="region-legend research-legend" aria-label="COMEX 黄金回撤与波动率曲线显示控制"></div>
+        <div id="gold-risk-summary" class="research-summary" aria-live="polite"></div>
+        <div id="gold-risk-chart" class="research-chart" role="img" aria-label="COMEX 黄金回撤与波动率双面板走势图"></div>
+        <p class="chart-note">回撤 = 当前收盘价 ÷ 最近 252 个有效交易日最高收盘价 − 1；这是当前距滚动高点的跌幅。20 日年化波动率 = 最近 20 个日对数收益率的样本标准差 × √252。窗口不足时留空，计算使用全部历史后再筛选展示。基础价格为 Yahoo Finance GC=F 连续期货收盘价，包含换月影响。 可选金色曲线为右轴 COMEX 收盘价（US$/oz），按当日或此前最近有效交易日对齐。</p>
+        <p class="source-line research-source">数据源：<a href="https://finance.yahoo.com/quote/GC%3DF/history/" target="_blank" rel="noreferrer">Yahoo Finance GC=F</a></p>
       </article>
     </section>
 
@@ -422,9 +522,9 @@
         </div>
       </div>
       <div class="methodology-grid">
-        <p><strong>数据范围：</strong>页面展示 COMEX 连续黄金期货价格、全球央行季度黄金储备、中国人民银行月度增持量、全球实物黄金 ETF 资金流与持仓，以及美国 10 年期实际利率和美元指数。</p>
+        <p><strong>数据范围：</strong>页面展示 COMEX 连续黄金期货价格、全球央行季度黄金储备、中国人民银行月度增持量、全球实物黄金 ETF 资金流与持仓，以及 CFTC 管理基金仓位、美国 10 年期利率分解、金价回撤和波动率、实际利率和美元指数。</p>
         <p><strong>单位：</strong>全球央行储备为季度末吨数；中国央行购金按 SAFE 月末实物储备差分换算为吨。ETF 美元口径按十亿美元展示；所有指标图的可选右轴金价统一为 COMEX GC=F 收盘价。</p>
-        <p><strong>更新频率：</strong>网页工作日自动检查 SAFE、World Gold Council、FRED 与 Yahoo Finance；全球央行储备随 WGC 季度数据更新，SAFE 通常于次月发布，日频市场数据在交易日更新。</p>
+        <p><strong>更新频率：</strong>网页每天北京时间 22:40 自动检查 SAFE、World Gold Council、FRED、CFTC 与 Yahoo Finance；全球央行储备随 WGC 季度数据更新，SAFE 通常于次月发布，日频市场数据在交易日更新。</p>
         <p><strong>数据声明：</strong>数据可能因源站修订而变化。全球央行与 ETF 数据来自 World Gold Council，中国央行月度储备来自 SAFE；COMEX 金价和美元指数来自 Yahoo Finance；实际利率来源为美联储 H.15，经 FRED 发布。</p>
       </div>
       <p class="source-line">原始数据页面：<a href="https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows" target="_blank" rel="noreferrer">Gold ETFs, holdings and flows</a></p>

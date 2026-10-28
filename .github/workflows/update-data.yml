@@ -43,15 +43,27 @@ jobs:
       - name: Refresh Yahoo Finance dollar-index data
         run: python scripts/update_dollar_index.py
 
+      - name: Refresh CFTC managed-money positions
+        run: python scripts/update_cftc_positions.py
+
+      - name: Refresh FRED yield decomposition
+        run: python scripts/update_yield_decomposition.py
+
+      - name: Calculate COMEX drawdown and volatility
+        run: python scripts/update_gold_risk.py
+
+      - name: Validate formulas and published data
+        run: python -m unittest discover -s tests -v
+
       - name: Commit updated data
         shell: bash
         run: |
-          if git diff --quiet -- data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv data/gold_price_by_frequency.csv data/gold_etf_holdings_by_region.json data/gold_etf_holdings_by_region.csv data/central_bank_gold_reserves_by_region.json data/central_bank_gold_reserves_by_region.csv data/pboc_gold_reserve_changes.json data/pboc_gold_reserve_changes.csv data/us_10y_real_yield.json data/us_10y_real_yield.csv data/comex_gold_futures.json data/comex_gold_futures.csv data/us_dollar_index.json data/us_dollar_index.csv; then
+          if git diff --quiet -- data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv data/gold_price_by_frequency.csv data/gold_etf_holdings_by_region.json data/gold_etf_holdings_by_region.csv data/central_bank_gold_reserves_by_region.json data/central_bank_gold_reserves_by_region.csv data/pboc_gold_reserve_changes.json data/pboc_gold_reserve_changes.csv data/us_10y_real_yield.json data/us_10y_real_yield.csv data/comex_gold_futures.json data/comex_gold_futures.csv data/us_dollar_index.json data/us_dollar_index.csv data/cftc_gold_positions.json data/cftc_gold_positions.csv data/us_yield_decomposition.json data/us_yield_decomposition.csv data/comex_gold_risk.json data/comex_gold_risk.csv; then
             echo "No source data change."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv data/gold_price_by_frequency.csv data/gold_etf_holdings_by_region.json data/gold_etf_holdings_by_region.csv data/central_bank_gold_reserves_by_region.json data/central_bank_gold_reserves_by_region.csv data/pboc_gold_reserve_changes.json data/pboc_gold_reserve_changes.csv data/us_10y_real_yield.json data/us_10y_real_yield.csv data/comex_gold_futures.json data/comex_gold_futures.csv data/us_dollar_index.json data/us_dollar_index.csv
+          git add data/gold_etf_flows_by_region.json data/gold_etf_flows_by_region.csv data/gold_price_by_frequency.csv data/gold_etf_holdings_by_region.json data/gold_etf_holdings_by_region.csv data/central_bank_gold_reserves_by_region.json data/central_bank_gold_reserves_by_region.csv data/pboc_gold_reserve_changes.json data/pboc_gold_reserve_changes.csv data/us_10y_real_yield.json data/us_10y_real_yield.csv data/comex_gold_futures.json data/comex_gold_futures.csv data/us_dollar_index.json data/us_dollar_index.csv data/cftc_gold_positions.json data/cftc_gold_positions.csv data/us_yield_decomposition.json data/us_yield_decomposition.csv data/comex_gold_risk.json data/comex_gold_risk.csv
           git commit -m "Update gold market data"
           git push
