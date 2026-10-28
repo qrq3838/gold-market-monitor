@@ -1,148 +1,123 @@
-# 黄金市场监测网站：模块、数据源与日更逻辑
+# 黄金市场监测：模块、数据源与日更逻辑
 
-最后更新：2026-08-09
+更新日期：2026-10-28
 
-项目目录（服务器）：`F:\res4\rqqin\strategy research\gold`
+- 网站：https://qrq3838.github.io/gold-market-monitor/
+- GitHub 发布源：https://github.com/qrq3838/gold-market-monitor ，分支 main。
+- 服务器镜像：F:\res4\rqqin\strategy research\gold
+- 定时检查：每天北京时间 22:40（UTC 14:40）；源数据日期以各 JSON 的 as_of_date 为准。
+- 本次范围：新增 CFTC 仓位、实际利率分解、金价回撤和波动率。全球央行月度净购金按用户要求暂缓，保留已有季度储备与中国月度购金。
 
-公开网站：<https://qrq3838.github.io/gold-market-monitor/>
+## 1. 页面模块
 
-## 一、现有模块
+JSON 用于绘图，同名 CSV 用于下载。下表文件均位于 data/，扩展名为 .json / .csv。
 
-| 模块 | 页面内容 | 指标口径 | 网站数据文件 | 原始数据源 | 更新频率 |
-|---|---|---|---|---|---|
-| COMEX 黄金期货价格 | 网页首张图，展示连续黄金期货日度收盘走势，并提供 MA5、MA20、MA60、MA120 独立开关 | Yahoo Finance `GC=F`；单位：US$/oz；日频；图表使用 Close；均线为最近 N 个有效交易日 Close 的简单算术平均 | `data/comex_gold_futures.json`、`data/comex_gold_futures.csv` | Yahoo Finance，交易所元数据为 COMEX | 工作日每日检查并更新 |
-| 中国人民银行月度增持黄金 | SAFE 月末黄金储备实物存量的月度差分柱状图，并叠加可开关的 COMEX 金价右轴 | 储备：万盎司；月度增持：相邻月差分并按 1 金衡盎司 = 31.1034768 克换算为吨；金价：GC=F Close | `data/pboc_gold_reserve_changes.json`、`data/pboc_gold_reserve_changes.csv`、`data/comex_gold_futures.json` | 国家外汇管理局“官方储备资产”；金价：Yahoo Finance `GC=F` | 工作日检查，SAFE 通常于次月更新 |
-| 全球央行黄金储备（按地区） | WGC 11 个地区季度末官方黄金持有量堆叠柱状图，可切换计入/不计入美国，并叠加可开关的 COMEX 金价右轴 | 123 个具有 WGC 地区分类的国家和地区；单位：吨；季度；AWAITED 沿用该经济体此前最近一期库存；不计入美国时只从 North America 和全球合计扣除 USA | `data/central_bank_gold_reserves_by_region.json`、`data/central_bank_gold_reserves_by_region.csv`、`data/comex_gold_futures.json` | WGC `getFilters` + `getPage`（`QTD_FULL`、`gold_reserves_tns`）；金价：Yahoo Finance `GC=F` | 工作日检查，WGC 季度数据发布时更新 |
-| Gold ETF flows by region | 北美、欧洲、亚洲、其他地区的资金流柱状图，并叠加可开关的 COMEX 金价右轴 | 资金流：美元或吨；金价：GC=F Close，US$/oz；年、季、月、周四种频率 | `data/gold_etf_flows_by_region.json`、`data/gold_etf_flows_by_region.csv`、`data/comex_gold_futures.json` | ETF：WGC `flows-chart2`；金价：Yahoo Finance `GC=F` | ETF 工作日检查；COMEX 金价每日检查 |
-| Gold ETFs holdings by region | 北美、欧洲、亚洲、其他地区的持仓堆叠面积图，并叠加可开关的 COMEX 金价右轴 | 持仓：吨或管理资产规模（美元）；金价：GC=F Close，US$/oz；年、季、月、周四种频率 | `data/gold_etf_holdings_by_region.json`、`data/gold_etf_holdings_by_region.csv`、`data/comex_gold_futures.json` | ETF：WGC `holdings-chart2`；金价：Yahoo Finance `GC=F` | ETF 工作日检查；COMEX 金价每日检查 |
-| 美国 10 年期国债实际收益率 | 实际收益率曲线，并叠加可开关的 COMEX 金价右轴 | DFII10：%、日频、非季调；金价：GC=F Close，US$/oz | `data/us_10y_real_yield.json`、`data/us_10y_real_yield.csv`、`data/comex_gold_futures.json` | 实际利率：用户 Excel + FRED DFII10；金价：Yahoo Finance `GC=F` | 工作日每日检查并增量更新 |
-| 美元指数 | ICE 美元指数日度收盘走势，并叠加可开关的 COMEX 金价右轴 | `DX-Y.NYB`：指数点；金价：GC=F Close，US$/oz；均为日频 | `data/us_dollar_index.json`、`data/us_dollar_index.csv`、`data/comex_gold_futures.json` | Yahoo Finance `DX-Y.NYB` 与 `GC=F` | 工作日每日检查并更新 |
+| 顺序 | 模块与文件名 | 数据源、口径 | 频率 |
+|---|---|---|---|
+| 1 | COMEX 金价：comex_gold_futures | Yahoo GC=F Close，美元/金衡盎司；MA5/20/60/120 可选 | 日 |
+| 2 | CFTC 仓位：cftc_gold_positions | COMEX GOLD 088691；Disaggregated Futures Only；Managed Money | 周 |
+| 3 | 实际利率分解：us_yield_decomposition | FRED DGS10、DFII10、T10YIE；名义、实际及盈亏平衡通胀率 | 日 |
+| 4 | 金价回撤与波动：comex_gold_risk | 由同一份 GC=F Close 计算 252 日高点回撤、20 日年化波动率 | 日 |
+| 5 | 中国央行购金：pboc_gold_reserve_changes | SAFE 月末黄金实物存量变化，吨 | 月 |
+| 6 | 全球央行储备：central_bank_gold_reserves_by_region | WGC 123 个地理经济体、11 地区，季度末吨数；可扣除美国 | 季 |
+| 7 | ETF 资金流：gold_etf_flows_by_region | WGC，北美/欧洲/亚洲/其他；吨/美元 | 年/季/月/周 |
+| 8 | ETF 持仓：gold_etf_holdings_by_region | WGC，地区持仓吨数/资产规模 | 年/季/月/周 |
+| 9 | 原实际利率：us_10y_real_yield | 用户历史 Excel + FRED DFII10，% | 日 |
+| 10 | 美元指数：us_dollar_index | Yahoo DX-Y.NYB Close，指数点 | 日 |
 
-## 二、原始数据页面
+每个指标模块支持日期筛选、快捷区间、图例开关及可选的 COMEX 右轴叠加。新模块由 assets/research-modules.js 绘制，保留原七个模块的代码和交互。
 
-- WGC ETF 数据：<https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows>
-- WGC 全球央行黄金储备：<https://www.gold.org/goldhub/data/gold-reserves-by-country>
-- FRED DFII10：<https://fred.stlouisfed.org/series/DFII10>
-- FRED CSV：<https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFII10>
-- Yahoo Finance COMEX 黄金期货：<https://finance.yahoo.com/quote/GC%3DF/history/>
-- Yahoo Finance 美元指数：<https://finance.yahoo.com/quote/DX-Y.NYB/history/>
-- 国家外汇管理局官方储备资产：<https://www.safe.gov.cn/safe/gfcbzc/index.html>
+## 2. 数据源
 
-SAFE 档案页从 2015 年 6 月开始列示官方储备资产，但 2015 年档案的黄金项目只有美元估值；可直接核验的“万盎司”实物存量从 2016 年 1 月开始。因此 2016 年 1 月作为基准月，第一笔可计算的月度增持量为 2016 年 2 月。
+- COMEX：https://finance.yahoo.com/quote/GC%3DF/history/
+- 美元指数：https://finance.yahoo.com/quote/DX-Y.NYB/history/
+- CFTC 历史报告：https://www.cftc.gov/MarketReports/CommitmentsofTraders/HistoricalCompressed/index.htm
+- CFTC 年度文件：https://www.cftc.gov/files/dea/history/fut_disagg_txt_2026.zip （年份随更新变化）
+- CFTC 口径：https://www.cftc.gov/MarketReports/CommitmentsofTraders/DisaggregatedExplanatoryNotes/index.htm
+- 名义利率：https://fred.stlouisfed.org/series/DGS10
+- 实际利率：https://fred.stlouisfed.org/series/DFII10
+- 盈亏平衡通胀率：https://fred.stlouisfed.org/series/T10YIE
+- FRED CSV：https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd=2003-01-01 （替换序列 ID 获取另两项）
+- SAFE：https://www.safe.gov.cn/safe/gfcbzc/index.html
+- WGC ETF：https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows
+- WGC 央行储备：https://www.gold.org/goldhub/data/gold-reserves-by-country
 
-DFII10 的正式名称为“10 年期通胀保值美国国债恒定期限市场收益率”，原始发布机构为美联储，所属发布为 H.15 Selected Interest Rates。FRED 页面口径为 Percent、Daily、Not Seasonally Adjusted。
+DGS10、DFII10 原始发布为美联储 H.15，经 FRED 提供；T10YIE 来源为圣路易斯联储。源数据可能修订。
 
-## 三、美国实际利率历史基线
+## 3. 新增指标的计算
 
-- 基线文件：`美国_国债实际收益率_10年.xlsx`
-- 本次实际读取位置：`D:\OneDrive - SAIF\RA\Li Feng\服务器\黄金监测\数据\美国_国债实际收益率_10年.xlsx`
-- 工作表：`美国_国债实际收益率_10年`
-- 有效观测：5,904 条
-- 起止日期：2003-01-02 至 2026-08-07
-- 最新值：2.40%
-- 表内元数据：频率“日”、单位“%”、指标来源“美国财政部”，页尾标注“数据来源：Wind”
+### CFTC 管理基金仓位
 
-历史基线不会在日更时被 FRED 全量覆盖。这样既保留用户提供文件作为可追溯的初始版本，又能从 2026-08-07 以后稳定续接官方公开序列。
+- 读取 2012 年以来 Disaggregated Futures Only 年度 ZIP，仅保留合约代码 088691。
+- 原始字段：Open_Interest_All、M_Money_Positions_Long_All、M_Money_Positions_Short_All、M_Money_Positions_Spread_All。
+- 净多头 = 多头 − 空头；净多占比 = 100 × 净多头 / 全市场期货总持仓。
+- 156 期历史分位 = 最近 156 份报告中净多占比小于等于当期的数量 / 156 × 100；窗口含当期，前 155 期为空。分位只用于描述拥挤程度。
+- 多头、空头、净多周变化均为前后报告之差。相邻日期相差 7 天才计算；假日变更持仓日期或缺报导致其他间隔时留空。
+- 净多头不计入套利仓位；该报告不含期权，不能与 futures-and-options combined 数据混用。
+- 横轴是持仓日期，通常为周二；常规公布时间为周五美国东部时间 15:30，节假日及延迟会改变公布时间。周二的点不能当作当天可获得的交易信号。
+- 日常重新获取本年度文件，1–2 月同时回看前一年；已存历史保留。全历史修订可加 --full-refresh。
+- 兼容旧档案日期字段 Report_Date_as_MM_DD_YYYY 和新字段 Report_Date_as_YYYY-MM-DD；字段内容按 ISO 日期核验。
 
-## 四、日度更新逻辑
+### 美国 10 年期利率分解
 
-GitHub Actions 工作流位于 `.github/workflows/update-data.yml`，计划时间为每天 14:40 UTC（北京时间 22:40），也支持手工触发。周末源站没有新观测时，任务会正常完成且不产生数据提交。
+- 直接使用 FRED 自 2003-01-02 起的三项官方序列，与原用户 Excel 基线模块分别存储。
+- 使用三项都有有效观测的日期交集，不插值、不前向填充。
+- 名义利率 = 实际利率 + 盈亏平衡通胀率；图上的盈亏平衡通胀率由 DGS10 − DFII10 计算，并与官方 T10YIE 独立核对。
+- 保存 official T10YIE 和逐源末日；差异超过 0.051 个百分点则报错。
+- 20 日变化 = 当期 − 20 个共同有效观测日前的值，再乘 100 转为 bp。前 20 期留空。
+- 盈亏平衡通胀率是市场通胀补偿，其中含通胀风险和流动性溢价。
+- 下图实际利率与通胀补偿的变化采用有符号叠加，总和等于名义利率变化线。
+- 日更重新下载三项公开历史，吸收官方修订，防止日期倒退。
 
-### 1. COMEX 黄金期货
+### COMEX 回撤与波动率
 
-1. `scripts/update_comex_gold.py` 通过 Yahoo Finance 图表接口下载 `GC=F` 全量日频历史；主接口失败时自动尝试 Yahoo 的备用图表主机。
-2. 校验返回标的必须为 `GC=F`，交易所元数据为 COMEX，并校验时间戳与 OHLC、复权收盘、成交量数组对齐。
-3. 剔除 Close 为空的缺失占位，并读取 Yahoo `currentTradingPeriod.regular` 判断当前交易所日线是否仍在进行；当前未结束交易日的零点日K线及接口末尾附加的盘中实时报价都被剔除。其余数据不做插值；有效日期必须唯一、严格递增，价格必须为正且位于预设合理区间，成交量不得为负。
-4. JSON 为网页使用的紧凑日期/收盘值序列；CSV 原样保留 Date、Open、High、Low、Close、Adjusted Close 和 Volume。
-5. 当前有效覆盖范围为 2000-08-30 至 2026-08-10，共 6,509 条日度观测，最新收盘价为 US$4,361.80/oz。
-6. Yahoo 的连续合约早期 OHLC 与结算 Close 存在换月口径差异：430 日的 Close 不在同日 High/Low 区间内，且 2009-11-23 的源站 High 低于 Low。网页只使用 Close；CSV 保留源站原值，不擅自修正。
-7. 网页端基于完整 Close 历史计算 MA5、MA20、MA60 和 MA120 简单移动平均线；窗口不足时返回空值，不缩短分母。四条均线默认关闭，用户可独立选择显示，不改变原始 JSON/CSV 数据。
+- 当前回撤（%）= 100 ×（当天 Close / 最近 252 个有效交易日最高 Close − 1）。
+- 该值表示当前距一年滚动高点的跌幅；前 251 个收盘观测为空。
+- 20 日年化波动率（%）= 最近 20 个日对数收益率的样本标准差（ddof=1）× √252 × 100；需要 21 个收盘价。
+- 基于完整历史先计算，再截取用户展示区间，改变筛选日期不改变同一天的指标值。
+- 必须在 update_comex_gold.py 成功后运行，指标日期与金价日期完全一致。
+- GC=F 连续期货 Close 包含换月影响；这里衡量报价序列的波动。
 
-### 2. ETF 资金流、持仓与金价
+## 4. 保留模块的更新规则
 
-1. `scripts/update_data.py` 分别请求 WGC 的资金流接口和持仓接口。
-2. 校验 `Yearly`、`Quarterly`、`Monthly`、`Weekly` 四种频率，校验地区名称、日期对齐、金价序列及资金流/持仓数据结构。
-3. 资金流与持仓的 `as_of_date` 必须一致；不一致时任务失败，不覆盖为“看似成功”的混合快照。
-4. 通过临时文件和原子替换写入 JSON/CSV；源数据没有变化时不制造无意义的数据提交。
-5. WGC 接口附带金价仍被下载、校验并保留在源数据文件中，但网页 ETF 曲线不再使用该价格；所有网页金价统一读取 COMEX `GC=F`。
+- COMEX / 美元指数：Yahoo Chart API query1/query2 双主机；校验标的、日期、OHLC 数组、价格合理性。排除 Close 为空、当前未结束交易日及接口附加的盘中报价；有效日不插值。COMEX CSV 保留源站早期 OHLC 的换月差异，网页只用 Close。
+- MA：前端对全历史 Close 计算 N 个有效交易日简单平均，N=5/20/60/120；窗口不足留空；默认关闭。
+- ETF：WGC flows-chart2 / holdings-chart2；四频率、四地区；两份 JSON 的 as_of_date 必须一致。美元图单位为十亿美元。WGC 原附带金价继续保存，但网页金价统一使用 COMEX。
+- 全球季度央行储备：getFilters + getPage，periodicity=QTD_FULL，gold_reserves_tns。123 个有地区分类的经济体按 11 地区加总，多边机构不计入地理合计。AWAITED 沿用该经济体此前最近已报库存，首次报告前不回填。扣除美国只影响 North America 和全球总量；差额逐季等于 USA。
+- SAFE：中国央行从 2016-01 实物存量开始；基准月变化留空。相邻月份“万盎司”差分 × 0.311034768 = 吨；校验 USD/SDR 重复列一致，不使用美元估值推算购买量。
+- 原 DFII10 模块：保留用户 Excel 作为早期历史基线；追加 FRED 新日，回看最近 35 个日历日吸收修订。Excel 初始覆盖 2003-01-02 至 2026-08-07，5,904 条；最新日期以现有 JSON 为准。
 
-### 3. 全球央行黄金储备（按地区）
+## 5. COMEX 叠加
 
-1. `scripts/update_central_bank_reserves.py` 请求 WGC 的地区分类接口 `getFilters` 与季度数据接口 `getPage`；后者固定使用 `periodicity=QTD_FULL` 和吨数指标 `gold_reserves_tns`，结束日期设到远期并由接口自动截到最新可用季度。
-2. 接口当前返回 123 个具有地区分类的国家和地区、11 个地区及 102 个季度，覆盖 2000-12-31 至 2026-03-31。脚本要求所有经济体日期完全一致、单位必须为 Tonnes、地区集合与 WGC 分类完全一致。
-3. 每个经济体的季度值按 WGC `regionGroup` 汇总。源值为 `null` / AWAITED 时，沿用该经济体此前最近一期已公布的库存存量；首次有值之前不回填。JSON 同时记录每季“当季已报、沿用上期、尚无历史值”的数量，便于识别最新季度覆盖状态。
-4. “全球合计”定义为这 123 个地理经济体在 11 个地区中的加总；没有 WGC 地区分类的多边机构不进入地理堆叠总量。最新 2026Q1 中 43 个经济体当季已报、78 个沿用上期、2 个尚无可用历史值。
-5. “不计入美国”逐季从 North America 和全球合计中扣除 `USA` 序列，其他地区不变；脚本要求两种全球口径之差逐季与美国吨数完全勾稽。
-6. 当前最新全球合计为 32,644.15 吨（计入美国）和 24,510.69 吨（不计入美国），差额即美国 8,133.46 吨。数据通过临时文件和原子替换写入 JSON/CSV；源数据无变化时保留原下载时间。
+assets/gold-overlay.js 缓存一次 COMEX JSON 请求。每个指标日期匹配当天或此前最近有效 COMEX 收盘价，无未来匹配；早于金价首日的日期为空。代码没有最大回溯天数硬限制，因此需同时检查基础金价末日。关闭金价开关后，相应曲线、右轴及提示关闭。独立 COMEX 图不重复叠加。
 
-### 4. 中国人民银行月度黄金储备增持
+## 6. 自动更新和验证
 
-1. `scripts/update_pboc_gold_reserves.py` 先读取 SAFE 官方储备资产索引，发现 2016 年以来的年度档案页；2016–2017 年从官方 XLSX 附件解析，2018 年以来从官方 HTML 表格解析。
-2. 仅使用“万盎司”实物存量，不使用受市场价格影响的黄金美元估值；SAFE 同一月份在美元和 SDR 两列重复列示实物存量，脚本要求两列完全一致后才接收。
-3. 每月增持量 = 当月末万盎司存量 − 上月末万盎司存量；按 `1 万盎司 = 0.311034768 吨` 换算。2016 年 1 月变化值为空，仅作为基准。
-4. 写入前校验年度月份数量、月份连续性、日期唯一且严格递增、物理储备范围及月度变化范围。任何档案缺失或 USD/SDR 重复列不一致都会使任务失败，不覆盖现有数据。
-5. 通过原子替换生成 `data/pboc_gold_reserve_changes.json` 和 `data/pboc_gold_reserve_changes.csv`。当前有效覆盖为 2016-01 至 2026-07，共 127 个月；2026 年 7 月增持 64 万盎司，即 19.906 吨。
-6. 若 Windows 服务器的 Anaconda/OpenSSL 无法识别企业证书链，脚本仅在捕获到证书校验错误时改用 Windows 系统证书库下载；两条通道都保留 HTTPS 证书验证，不使用不安全的“忽略证书”选项。
+.github/workflows/update-data.yml 每天北京时间 22:40 运行，也可 workflow_dispatch。依次执行：
 
-### 5. 美国 10 年期实际收益率
+1. update_data.py
+2. update_central_bank_reserves.py
+3. update_pboc_gold_reserves.py
+4. update_real_yield.py
+5. update_comex_gold.py
+6. update_dollar_index.py
+7. update_cftc_positions.py
+8. update_yield_decomposition.py
+9. update_gold_risk.py
+10. python -m unittest discover -s tests -v
 
-1. `scripts/update_real_yield.py` 读取网站现有历史序列。
-2. 从 FRED 官方 CSV 下载 DFII10 全量公开记录，仅保留可解析的数值观测；FRED 以 `.` 表示的缺失日被忽略，不做前值填充。
-3. 对晚于当前末日的新日期执行追加。
-4. 同时回看并覆盖最近 35 个日历日的重叠数据，以吸收 FRED 可能发布的近期修订；更早的 Excel 历史基线保持不变。
-5. 写入前校验日期唯一、严格递增、观测数不少于 1,000，且数值位于合理范围 `(-10%, 20%)`。
-6. 通过原子替换生成 `data/us_10y_real_yield.json` 和 `data/us_10y_real_yield.csv`；没有增量或修订时不产生提交。
+脚本、校验均成功后，工作流只提交明确列出的数据文件。任一步失败，工作流停止发布，GitHub 上保留上一份完整数据。无真实数据变化时不制造新提交。CSV/JSON 采用同目录临时文件原子替换；数据集没有变化时保留下载时间。
 
-### 6. 美元指数
+tests/test_research_modules.py 验证净头寸与分位、旧表头、日期断档、利率勾稽、bp 换算、回撤窗口、样本波动率、缺失窗口、JSON/CSV 一致性、金价源一致性及网页本地链接。
 
-1. `scripts/update_dollar_index.py` 通过 Yahoo Finance 图表接口下载 `DX-Y.NYB` 全量日频历史；主接口失败时自动尝试 Yahoo 的备用图表主机。
-2. 校验返回标的必须为 `DX-Y.NYB`，并校验时间戳与 OHLC、复权收盘数组对齐。
-3. 剔除 Close 为空的周末或缺失占位，并依据 Yahoo 当前交易时段剔除尚未结束交易日的零点日K线及末尾盘中实时报价，避免把盘中快照误作日收盘；其余数据不做插值，有效日期必须唯一、严格递增。
-4. 对收盘值执行合理区间校验，并确认收盘价位于当日最高价与最低价之间。
-5. JSON 为网页使用的紧凑日期/收盘值序列；CSV 保留 Date、Open、High、Low、Close、Adjusted Close。
-6. 当前有效覆盖范围为 1971-01-04 至 2026-08-10，共 14,118 条日度观测，最新收盘值为 99.81。
+新增脚本只用 Python 标准库；无需 CFTC/FRED API 密钥。原始下载缓存放在 GOLD_CACHE_DIR 指定目录，默认 work/source_cache/，不进入 Git。
 
-### 7. 网页统一金价叠加与日期对齐
+## 7. 日更与服务器同步
 
-1. `assets/gold-overlay.js` 只载入一次 `data/comex_gold_futures.json`，供央行购金、全球央行储备、ETF 资金流、ETF 持仓、实际利率和美元指数六张指标图共同使用。
-2. 各图保留自己的横轴日期和观测数；对每个指标日期，取该日当天或此前最近一个 COMEX 有效收盘价，不使用未来值、不改变指标数据。
-3. 当前 ETF 周度向前匹配最多 2 天，月度最多 4 天，季度最多 3 天，年度最多 2 天；实际利率和美元指数日频最多 3 天。
-4. 美元指数 1971-01-04 至 2000-08-29 早于 `GC=F` 历史，该段金价为 `null`，图中保持空白，不回填第一笔金价。
-5. 六张指标图默认显示 COMEX 金价；用户可通过图例按钮隐藏或重新显示曲线，隐藏时右轴和金价提示同时消失。独立 COMEX 金价图本身不重复叠加同一序列。
+正式更新环境为 GitHub Actions。服务器 Yahoo 可能返回 HTTP 403；保留已验证数据，转由 Actions 更新，不关闭 HTTPS 验证、不写盘中替代值。
 
-### 8. 发布
+GitHub Actions 不会自动同步内网服务器。Actions、Pages 成功后，从固定提交 SHA 获取变更文件，先写入服务器同目录临时文件，再原子替换并核对 SHA-256。服务器保留 work/ 缓存、开发副本、日志及备份，不覆盖其他研究文件。
 
-1. 任一数据文件发生真实变化后，GitHub Actions 以机器人账号提交并推送。
-2. GitHub Pages 从主分支重新发布网站。
-3. 浏览器端每次载入 JSON 时使用 `cache: no-store`，避免显示旧的数据快照。
+服务器计算必须使用 F:\res4\rqqin\anaconda3\python.exe。连接使用固定 rqqin-server-connect 环境；禁止临时安装连接依赖。开发前检查项目 AGENTS.md。保留本机仓库已有未提交改动，数据加工留在服务器。
 
-## 五、失败保护与巡检要点
-
-- 网络请求失败、HTTP 状态异常、JSON/CSV 格式变化、字段缺失或校验失败时，更新脚本以非零状态退出。
-- 所有数据文件先写入同目录临时文件，再原子替换，避免留下半写入文件。
-- ETF 模块重点巡检 WGC `as_of_date` 是否前进、周度观测数是否增加、两个接口日期是否一致。
-- 全球央行储备模块重点巡检 WGC 地区数是否仍为 11、经济体序列是否仍为 123、季度日期是否对齐、AWAITED 数量是否异常扩大，以及计入/不计入美国之差是否等于美国序列。
-- 央行购金模块重点巡检 SAFE 最新月份、万盎司实物存量、月份连续性、相邻月差分与吨数换算；不得以美元估值替代实物存量。
-- COMEX 金价模块重点巡检 `as_of_date`、最新 Close 和有效观测数；连续合约的早期 OHLC 口径异常不影响仅使用 Close 的网页曲线。
-- 统一金价叠加重点巡检六张指标图是否都显示 `COMEX 金价` 按钮、右轴是否为 `US$/oz`，以及关闭按钮后曲线、右轴和提示是否同时消失。
-- 实际利率模块重点巡检 `as_of_date`、最新值与 FRED 页面是否一致；周末及美国节假日无新观测属于正常情况。
-- 美元指数模块重点巡检 `as_of_date`、最新收盘值和有效观测数；Yahoo 返回的空值占位被忽略属于正常处理。
-- 如果连续两个美国工作日没有新实际利率数据，先检查 FRED 页面是否延迟，再检查 GitHub Actions 日志。
-
-## 六、服务器手工更新命令
-
-服务器上所有 Python 脚本必须使用项目规定的解释器：
-
-```powershell
-Set-Location 'F:\res4\rqqin\strategy research\gold'
-& 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_data.py'
-& 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_central_bank_reserves.py'
-& 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_pboc_gold_reserves.py'
-& 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_real_yield.py'
-& 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_comex_gold.py'
-& 'F:\res4\rqqin\anaconda3\python.exe' 'scripts\update_dollar_index.py'
-```
-
-运行后应检查各脚本的末行摘要、数据文件修改时间、最新日期和观测数，再决定是否提交发布。
-
-注意：Yahoo Finance 可能按出口 IP 限制图表接口。若服务器手工运行 COMEX 金价或美元指数脚本返回 HTTP 403，脚本会在写文件前失败并保留现有数据；此时应在 GitHub Actions 中手工触发 `Update gold market data`，以该自动更新链路为网站日更的正式运行环境。
+本机黄金监测目录只同步本文、交接文档等最终交付文件。各指标最新观测日期不同：每日检查低频源不代表每日新增观测。

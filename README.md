@@ -47,3 +47,12 @@ python scripts/update_dollar_index.py
 所有指标图的可选金价曲线统一读取 `GC=F`。网页按指标自身日期取当天或此前最近一个 COMEX 有效收盘价，不使用未来值；美元指数早于 2000-08-30 的历史区间不显示金价。
 
 本项目仅供研究交流，不构成任何投资建议。
+
+## 2026-10 新增研究模块
+
+保留 COMEX 首图和既有七个模块，新增 CFTC 管理基金仓位、美国 10 年期利率分解、COMEX 回撤与波动率。支持日期筛选、曲线开关及 COMEX 右轴叠加。全球央行月度净购金暂缓。
+
+- 数据口径、来源与计算：[DATA_MODULES_AND_REFRESH.md](DATA_MODULES_AND_REFRESH.md)
+- 日更交接：[WORKBUDDY_HANDOFF.md](WORKBUDDY_HANDOFF.md)
+- 校验：`python -m unittest discover -s tests -v`
+- Actions 每天北京时间 22:40 更新九个脚本；所有检查通过后提交数据。
